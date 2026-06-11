@@ -62,7 +62,7 @@
 <body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans overflow-hidden">
 
     <!-- Notification Toast -->
-    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 hidden bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg font-bold transition-all duration-300"></div>
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-50 hidden bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black transition-all duration-300 border-2 border-white text-center min-w-[250px]"></div>
 
     <!-- Screen 1: Login / Join -->
     <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-red-900 via-gray-900 to-blue-900 p-4">
@@ -158,7 +158,7 @@
                 </div>
             </div>
 
-            <div id="turn-banner" class="mt-8 text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg text-center h-8">Waiting...</div>
+            <div id="turn-banner" class="mt-8 text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg text-center h-8 transition-all">Waiting...</div>
         </div>
 
         <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-4 pb-8 flex flex-col relative z-20">
@@ -179,10 +179,10 @@
         <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border border-gray-600">
             <h3 class="text-2xl font-black mb-6 text-white uppercase">Choose Color</h3>
             <div class="grid grid-cols-2 gap-4">
-                <button onclick="submitWildColor('red')" class="w-full h-24 rounded-xl bg-red-500 hover:bg-red-400 shadow-lg border-4 border-red-700"></button>
-                <button onclick="submitWildColor('blue')" class="w-full h-24 rounded-xl bg-blue-500 hover:bg-blue-400 shadow-lg border-4 border-blue-700"></button>
-                <button onclick="submitWildColor('green')" class="w-full h-24 rounded-xl bg-green-500 hover:bg-green-400 shadow-lg border-4 border-green-700"></button>
-                <button onclick="submitWildColor('yellow')" class="w-full h-24 rounded-xl bg-yellow-500 hover:bg-yellow-400 shadow-lg border-4 border-yellow-700"></button>
+                <button onclick="submitWildColor('red')" class="w-full h-24 rounded-xl bg-red-500 hover:bg-red-400 shadow-lg border-4 border-red-700 transition hover:scale-105"></button>
+                <button onclick="submitWildColor('blue')" class="w-full h-24 rounded-xl bg-blue-500 hover:bg-blue-400 shadow-lg border-4 border-blue-700 transition hover:scale-105"></button>
+                <button onclick="submitWildColor('green')" class="w-full h-24 rounded-xl bg-green-500 hover:bg-green-400 shadow-lg border-4 border-green-700 transition hover:scale-105"></button>
+                <button onclick="submitWildColor('yellow')" class="w-full h-24 rounded-xl bg-yellow-500 hover:bg-yellow-400 shadow-lg border-4 border-yellow-700 transition hover:scale-105"></button>
             </div>
             <button onclick="cancelWildColor()" class="mt-6 text-gray-400 hover:text-white underline">Cancel</button>
         </div>
@@ -203,7 +203,7 @@
         import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // FIREBASE CONFIGURATION 
+        // FIREBASE CONFIGURATION (Exact integration)
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCx1BYDb6ocTHyGemprGJ4k2B0WkCdUsko",
@@ -248,7 +248,7 @@
         const showToast = (msg, isImportant = false) => {
             const t = document.getElementById('toast');
             t.innerText = msg;
-            t.className = `fixed top-10 left-1/2 transform -translate-x-1/2 z-50 bg-${isImportant?'red':'blue'}-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black toast-enter border-2 border-white`;
+            t.className = `fixed top-10 left-1/2 transform -translate-x-1/2 z-50 bg-${isImportant?'red':'blue'}-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black toast-enter border-2 border-white text-center min-w-[250px]`;
             t.classList.remove('hidden');
             setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast-enter'); }, 4000);
         };
@@ -279,8 +279,10 @@
         const canPlayCard = (card, state) => {
             if (state.turnState === 'start') {
                 if (state.pendingDraws > 0) {
-                    // Penalty stacking defense: Must play a draw card
-                    return (card.type === 'draw2' || card.type === 'wild4');
+                    // Penalty stacking defense: MUST match the + type
+                    if (state.chainValue === 'draw2') return card.type === 'draw2' || card.type === 'wild4';
+                    if (state.chainValue === 'wild4') return card.type === 'wild4';
+                    return false;
                 }
                 const topCard = state.discardPile[state.discardPile.length - 1];
                 const activeColor = state.currentColor || topCard.color;
@@ -292,7 +294,7 @@
                 // Must exactly match the value of the active chain
                 return card.value === state.chainValue;
             } else if (state.turnState === 'drew') {
-                // Evaluated same as normal start, but no pending draws possible
+                // Evaluated same as normal start
                 const topCard = state.discardPile[state.discardPile.length - 1];
                 const activeColor = state.currentColor || topCard.color;
                 if (card.color === 'black') return true;
@@ -301,6 +303,44 @@
                 return false;
             }
             return false;
+        };
+
+        const getNextTurn = (state, startIndex) => {
+            let len = state.players.length;
+            let nextIndex = (startIndex + (state.direction * (1 + state.pendingSkips))) % len;
+            if (nextIndex < 0) nextIndex += len;
+            state.pendingSkips = 0;
+
+            // Handle pending draws & defense auto-resolution
+            while (state.pendingDraws > 0) {
+                let target = state.players[nextIndex];
+                let hasDefense = target.hand.some(c => {
+                    if (state.chainValue === 'draw2') return c.type === 'draw2' || c.type === 'wild4';
+                    if (state.chainValue === 'wild4') return c.type === 'wild4';
+                    return false;
+                });
+
+                if (hasDefense) {
+                    // Target has a defense card. Turn belongs to them now to allow stacking or manually taking penalty
+                    break;
+                } else {
+                    // Target CANNOT defend. Auto-draw all penalty cards and lose turn!
+                    for(let i=0; i<state.pendingDraws; i++) {
+                        if (state.deck.length === 0 && state.discardPile.length > 1) {
+                            state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                        }
+                        if (state.deck.length > 0) target.hand.push(state.deck.pop());
+                    }
+                    state.lastAction = { msg: `💥 ${target.name} AUTO-DREW ${state.pendingDraws} CARDS!`, ts: Date.now() };
+                    state.pendingDraws = 0;
+                    state.chainValue = null; 
+                    
+                    // Turn skips over this player
+                    nextIndex = (nextIndex + state.direction) % len;
+                    if (nextIndex < 0) nextIndex += len;
+                }
+            }
+            return nextIndex;
         };
 
         window.createRoom = async () => {
@@ -367,7 +407,6 @@
             });
         };
 
-        // NEW RULES ACTIONS
         window.callUno = async () => {
             let state = JSON.parse(JSON.stringify(localGameState));
             let me = state.players.find(p => p.id === currentUser.uid);
@@ -385,10 +424,12 @@
             let target = state.players.find(p => p.id === targetId);
             let catcher = state.players.find(p => p.id === currentUser.uid);
             
-            if (state.deck.length === 0) state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+            if (state.deck.length === 0 && state.discardPile.length > 1) {
+                state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+            }
             if (state.deck.length > 0) target.hand.push(state.deck.pop());
             
-            state.lastAction = { msg: `🚨 ${catcher.name} CATCHED ${target.name}! (+1 Card) 🚨`, ts: Date.now() };
+            state.lastAction = { msg: `🚨 ${catcher.name} CAUGHT ${target.name}! (+1 Card) 🚨`, ts: Date.now() };
             state.catchTarget = null;
             
             await updateDoc(getRoomRef(currentRoomId), state);
@@ -398,49 +439,67 @@
             let state = JSON.parse(JSON.stringify(localGameState));
             if (state.players[state.turnIndex].id !== currentUser.uid) return;
 
-            let steps = 1 + (state.pendingSkips || 0);
-            state.turnIndex = (state.turnIndex + (state.direction * steps) + (state.players.length * 10)) % state.players.length;
-            
+            state.turnIndex = getNextTurn(state, state.turnIndex);
             state.turnState = 'start';
             state.chainValue = null;
-            state.pendingSkips = 0;
             
-            // Clean up flags
             let me = state.players.find(p => p.id === currentUser.uid);
             me.unoCalled = false;
 
             await updateDoc(getRoomRef(currentRoomId), state);
         };
 
-        window.drawCard = async () => {
-            const state = localGameState;
+        window.takePenalty = async () => {
+            let state = JSON.parse(JSON.stringify(localGameState));
             if (state.players[state.turnIndex].id !== currentUser.uid) return;
-            if (state.turnState !== 'start') return; 
-            
-            let s = JSON.parse(JSON.stringify(state));
-            let p = s.players.find(x => x.id === currentUser.uid);
-            
-            if (s.pendingDraws > 0) {
-                // Absorb stacked penalty cards & instantly pass turn
-                for(let i=0; i<s.pendingDraws; i++) {
-                    if (s.deck.length === 0) s.deck = s.discardPile.splice(0, s.discardPile.length-1).sort(()=>Math.random()-0.5);
-                    if(s.deck.length > 0) p.hand.push(s.deck.pop());
+            if (state.pendingDraws === 0) return;
+
+            let p = state.players.find(x => x.id === currentUser.uid);
+            for(let i=0; i<state.pendingDraws; i++) {
+                if (state.deck.length === 0 && state.discardPile.length > 1) {
+                    state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
                 }
-                s.pendingDraws = 0;
-                s.turnIndex = (s.turnIndex + s.direction + s.players.length) % s.players.length;
-                s.turnState = 'start';
-                s.chainValue = null;
-            } else {
-                // Normal single draw, allows playing after
-                if (s.deck.length === 0) s.deck = s.discardPile.splice(0, s.discardPile.length-1).sort(()=>Math.random()-0.5);
-                if(s.deck.length > 0) p.hand.push(s.deck.pop());
-                
-                s.turnState = 'drew';
-                p.unoCalled = false;
-                if (s.catchTarget === currentUser.uid) s.catchTarget = null;
+                if(state.deck.length > 0) p.hand.push(state.deck.pop());
+            }
+            
+            state.lastAction = { msg: `💥 ${p.name} chose to draw ${state.pendingDraws} penalty cards!`, ts: Date.now() };
+            state.pendingDraws = 0;
+            state.chainValue = null;
+            
+            state.turnIndex = getNextTurn(state, state.turnIndex);
+            state.turnState = 'start';
+            p.unoCalled = false;
+            
+            await updateDoc(getRoomRef(currentRoomId), state);
+        };
+
+        window.drawCard = async () => {
+            const state = JSON.parse(JSON.stringify(localGameState));
+            if (state.players[state.turnIndex].id !== currentUser.uid) return;
+            if (state.turnState !== 'start' || state.pendingDraws > 0) return; 
+            
+            let p = state.players.find(x => x.id === currentUser.uid);
+            
+            if (state.deck.length === 0 && state.discardPile.length > 1) {
+                state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+            }
+            if(state.deck.length > 0) p.hand.push(state.deck.pop());
+            
+            state.turnState = 'drew';
+            p.unoCalled = false;
+            if (state.catchTarget === currentUser.uid) state.catchTarget = null;
+
+            // Evaluate if drawn card grants a valid throw
+            let canPlay = p.hand.some(c => canPlayCard(c, state));
+            
+            if (!canPlay) {
+                // Auto Pass if no valid moves exist!
+                state.turnIndex = getNextTurn(state, state.turnIndex);
+                state.turnState = 'start';
+                state.chainValue = null;
             }
 
-            await updateDoc(getRoomRef(currentRoomId), s);
+            await updateDoc(getRoomRef(currentRoomId), state);
         };
 
         window.attemptPlayCard = (cardId) => {
@@ -474,7 +533,6 @@
             state.turnState = 'chained';
             state.chainValue = card.value;
 
-            // Penalty accumulation
             if (card.type === 'draw2') state.pendingDraws += 2;
             if (card.type === 'wild4') state.pendingDraws += 4;
             
@@ -493,10 +551,17 @@
                 if (state.catchTarget === currentUser.uid) state.catchTarget = null;
             }
 
+            let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
+
             if (me.hand.length === 0) { 
                 state.status = 'finished'; 
                 state.winner = currentUser.uid; 
                 state.catchTarget = null;
+            } else if (!hasMoreMoves) {
+                // Auto pass directly if no matching cards to continue chain!
+                state.turnIndex = getNextTurn(state, state.turnIndex);
+                state.turnState = 'start';
+                state.chainValue = null;
             }
 
             await updateDoc(getRoomRef(currentRoomId), state);
@@ -508,9 +573,9 @@
                 if (!snap.exists()) { showToast("Room closed", true); leaveRoom(); return; }
                 localGameState = snap.data(); 
                 
-                // Show global Toasts (like Caught messages)
+                // Show global Toasts
                 if (localGameState.lastAction && localGameState.lastAction.ts > localLastActionTs) {
-                    showToast(localGameState.lastAction.msg, localGameState.lastAction.msg.includes('CATCH'));
+                    showToast(localGameState.lastAction.msg, localGameState.lastAction.msg.includes('CATCH') || localGameState.lastAction.msg.includes('AUTO-DREW'));
                     localLastActionTs = localGameState.lastAction.ts;
                 }
                 
@@ -545,9 +610,9 @@
                 document.getElementById('current-color-glow').style.backgroundColor = state.currentColor ? colors[state.currentColor] : 'transparent';
 
                 const banner = document.getElementById('turn-banner');
-                if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-8 text-3xl font-black uppercase text-yellow-400"; }
-                else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-8 text-3xl font-black uppercase text-green-400 animate-bounce"; }
-                else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-8 text-xl font-black uppercase text-white"; }
+                if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-8 text-4xl font-black uppercase tracking-widest text-yellow-400 drop-shadow-lg"; }
+                else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-8 text-3xl font-black uppercase tracking-widest text-green-400 drop-shadow-lg animate-bounce"; }
+                else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-8 text-xl font-black uppercase tracking-widest text-white drop-shadow-lg"; }
 
                 if (state.discardPile.length > 0) document.getElementById('discard-pile').innerHTML = createCardHTML(state.discardPile[state.discardPile.length - 1], false);
 
@@ -555,7 +620,7 @@
                 const actionContainer = document.getElementById('action-buttons');
                 actionContainer.innerHTML = '';
 
-                // 1. CATCH button (Shows if someone is catchable, and it's NOT you)
+                // 1. CATCH button
                 if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
                     actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CATCH!</button>`;
                 }
@@ -570,13 +635,14 @@
                     // 3. Draw or Take Penalty cards
                     if (state.turnState === 'start') {
                         if (state.pendingDraws > 0) {
-                            actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws}</button>`;
+                            // Target reached here, which means they CAN defend. But we give them a button if they willingly want to take penalty and end turn.
+                            actionContainer.innerHTML += `<button onclick="takePenalty()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws} Cards</button>`;
                         } else {
                             actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white border border-blue-400"><i class="fas fa-plus"></i> Draw</button>`;
                         }
                     }
 
-                    // 4. Forfeit/Pass Turn
+                    // 4. Forfeit/Pass Turn (Only shows if they have a valid move but want to skip manually)
                     if (state.turnState === 'chained' || state.turnState === 'drew') {
                         actionContainer.innerHTML += `<button onclick="passTurn()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-gray-400"><i class="fas fa-forward"></i> Pass Turn</button>`;
                     }
@@ -598,12 +664,12 @@
                     
                     opps.innerHTML += `
                         <div class="glass-panel rounded-xl p-3 flex flex-col items-center min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'} ${isCatchable ? 'ring-4 ring-red-500 animate-pulse' : ''}">
-                            <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-2 shadow-inner">${p.name.charAt(0).toUpperCase()}</div>
+                            <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-2 shadow-inner border border-gray-500">${p.name.charAt(0).toUpperCase()}</div>
                             <div class="text-sm font-bold truncate w-20 text-center">${p.name}</div>
                             <div class="mt-2 bg-gray-800 rounded-full px-3 py-1 text-sm font-mono font-bold flex items-center gap-2">
                                 <i class="fas fa-layer-group text-yellow-500"></i> ${p.hand.length}
                             </div>
-                            ${p.unoCalled ? '<div class="text-[10px] text-yellow-400 font-black uppercase mt-1">UNO Called</div>' : ''}
+                            ${p.unoCalled ? '<div class="text-[10px] text-yellow-400 font-black uppercase mt-1 text-center w-full">UNO Called</div>' : ''}
                         </div>`;
                 });
 
@@ -640,3 +706,4 @@
 
 
 ```
+
