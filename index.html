@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNO Multiplayer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom Uno Styles */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overscroll-behavior-y: contain; }
+        
+        .uno-card {
+            width: 80px; height: 120px; border-radius: 8px; border: 4px solid white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); position: relative; display: flex;
+            justify-content: center; align-items: center; user-select: none;
+            transition: transform 0.2s, box-shadow 0.2s; background-color: #222;
+        }
+        
+        .uno-card:hover:not(:disabled) {
+            transform: translateY(-15px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.4);
+            z-index: 50; cursor: pointer;
+        }
+
+        .uno-card.disabled { filter: brightness(0.5); cursor: not-allowed; transform: none !important; }
+
+        .uno-card-inner {
+            width: 85%; height: 90%; border-radius: 50% / 10%; background-color: inherit;
+            border: 2px solid white; display: flex; justify-content: center;
+            align-items: center; transform: skewY(-15deg);
+        }
+
+        .uno-card-value {
+            font-size: 2.5rem; font-weight: 900; color: white;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            transform: skewY(15deg);
+        }
+
+        .uno-card-corner {
+            position: absolute; font-size: 1rem; font-weight: bold; color: white;
+            text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        .uno-card-corner.top-left { top: 4px; left: 6px; }
+        .uno-card-corner.bottom-right { bottom: 4px; right: 6px; transform: rotate(180deg); }
+
+        .card-red { background-color: #ff5555; }
+        .card-blue { background-color: #5555ff; }
+        .card-green { background-color: #55aa55; }
+        .card-yellow { background-color: #ffaa00; }
+        .card-black { background: linear-gradient(135deg, #ff5555 25%, #5555ff 25%, #5555ff 50%, #ffaa00 50%, #ffaa00 75%, #55aa55 75%); }
+
+        .hand-container { display: flex; overflow-x: auto; padding-bottom: 20px; padding-top: 20px; gap: -40px; }
+        .hand-container > div { margin-right: -40px; flex-shrink: 0; }
+        .hand-container > div:last-child { margin-right: 0; }
+
+        .glass-panel { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
+
+        @keyframes slideIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .toast-enter { animation: slideIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans overflow-hidden">
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 hidden bg-blue-600 text-white px-6 py-3 rounded-full shadow-lg font-bold transition-all duration-300"></div>
+
+    <!-- Screen 1: Login / Join -->
+    <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-red-900 via-gray-900 to-blue-900 p-4">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-gray-700">
+            <h1 class="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 tracking-tighter" style="-webkit-text-stroke: 2px white;">UNO</h1>
+            <p class="text-gray-400 mb-8 font-semibold uppercase tracking-widest text-sm">Multiplayer Web Edition</p>
+            
+            <div id="auth-loading" class="text-blue-400 mb-4 animate-pulse">Connecting to server...</div>
+
+            <div id="login-form" class="space-y-4 hidden">
+                <div>
+                    <input type="text" id="player-name" placeholder="Enter your name" maxlength="15" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold">
+                </div>
+                
+                <div class="pt-4 border-t border-gray-700 grid grid-cols-2 gap-4">
+                    <div>
+                        <input type="text" id="room-code" placeholder="4 Letters" maxlength="4" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white uppercase text-center focus:outline-none focus:ring-2 focus:ring-green-500 font-bold text-xl">
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="joinRoom()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105 uppercase tracking-wider text-sm">Join Room</button>
+                    </div>
+                </div>
+                
+                <div class="relative flex py-2 items-center">
+                    <div class="flex-grow border-t border-gray-600"></div>
+                    <span class="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase">Or</span>
+                    <div class="flex-grow border-t border-gray-600"></div>
+                </div>
+
+                <button onclick="createRoom()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition transform hover:scale-105 uppercase tracking-wider">Create New Room</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 2: Lobby -->
+    <div id="screen-lobby" class="hidden flex-1 flex flex-col items-center justify-center bg-gray-900 p-4">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-700">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                <h2 class="text-3xl font-bold">Game Lobby</h2>
+                <div class="bg-gray-700 px-4 py-2 rounded-lg text-center">
+                    <div class="text-xs text-gray-400 uppercase tracking-wide">Room Code</div>
+                    <div id="lobby-room-code" class="text-2xl font-mono font-bold text-yellow-400 tracking-widest">WXYZ</div>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold text-gray-300 mb-2">Players (<span id="player-count">1</span>/10)</h3>
+                <div id="player-list" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="leaveRoom()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-lg shadow transition">Leave Room</button>
+                <button id="btn-start-game" onclick="startGame()" class="flex-2 bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow transition hidden">Start Game</button>
+            </div>
+            <p id="waiting-msg" class="text-center text-gray-400 mt-4 text-sm hidden">Waiting for host to start...</p>
+        </div>
+    </div>
+
+    <!-- Screen 3: Game Board -->
+    <div id="screen-game" class="hidden flex-1 flex flex-col relative bg-green-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-800 to-gray-900">
+        
+        <div class="absolute top-0 left-0 w-full p-2 flex justify-between items-start z-10 pointer-events-none">
+            <div class="glass-panel px-4 py-2 rounded-lg pointer-events-auto shadow-lg">
+                <span class="text-xs text-gray-300 block uppercase">Room</span>
+                <span id="game-room-code" class="font-mono font-bold text-lg text-yellow-400">WXYZ</span>
+            </div>
+            <div id="direction-indicator" class="glass-panel w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform duration-500">
+                <i class="fas fa-sync-alt text-white"></i>
+            </div>
+            <button onclick="leaveRoom()" class="glass-panel px-4 py-2 rounded-lg text-red-400 hover:text-white hover:bg-red-600 pointer-events-auto transition">
+                <i class="fas fa-sign-out-alt"></i> Leave
+            </button>
+        </div>
+
+        <div id="opponents-container" class="flex-1 flex justify-around items-start pt-16 px-4 flex-wrap gap-4 z-0"></div>
+
+        <div class="flex-1 flex flex-col items-center justify-center relative z-0 min-h-[250px]">
+            <div id="current-color-glow" class="absolute w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors duration-500"></div>
+
+            <div class="flex gap-8 items-center z-10">
+                <div class="flex flex-col items-center">
+                    <div id="draw-pile" class="uno-card bg-gray-800 border-gray-600 cursor-pointer hover:scale-105" onclick="drawCard()">
+                        <div class="uno-card-inner bg-red-600 border-red-500 flex items-center justify-center">
+                            <span class="text-white font-black italic text-xl transform -skew-y-15">UNO</span>
+                        </div>
+                    </div>
+                    <span class="mt-2 text-sm font-bold bg-black bg-opacity-50 px-3 py-1 rounded-full"><i class="fas fa-layer-group"></i> <span id="deck-count">108</span></span>
+                </div>
+
+                <div class="flex flex-col items-center">
+                    <div id="discard-pile" class="relative"></div>
+                    <span class="mt-2 text-sm font-bold bg-black bg-opacity-50 px-3 py-1 rounded-full">Top Card</span>
+                </div>
+            </div>
+
+            <div id="turn-banner" class="mt-8 text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg text-center h-8">Waiting...</div>
+        </div>
+
+        <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-4 pb-8 flex flex-col relative z-20">
+            <div class="flex justify-between items-end mb-2 px-4">
+                <div class="text-xl font-bold" id="my-name-display">You</div>
+                <div class="flex gap-4">
+                    <button id="btn-draw" onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded font-bold shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-plus"></i> Draw
+                    </button>
+                </div>
+            </div>
+            <div id="my-hand" class="hand-container px-8 min-h-[140px] flex items-center justify-center sm:justify-start"></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="color-picker-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border border-gray-600">
+            <h3 class="text-2xl font-black mb-6 text-white uppercase">Choose Color</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="submitWildColor('red')" class="w-full h-24 rounded-xl bg-red-500 hover:bg-red-400 shadow-lg border-4 border-red-700"></button>
+                <button onclick="submitWildColor('blue')" class="w-full h-24 rounded-xl bg-blue-500 hover:bg-blue-400 shadow-lg border-4 border-blue-700"></button>
+                <button onclick="submitWildColor('green')" class="w-full h-24 rounded-xl bg-green-500 hover:bg-green-400 shadow-lg border-4 border-green-700"></button>
+                <button onclick="submitWildColor('yellow')" class="w-full h-24 rounded-xl bg-yellow-500 hover:bg-yellow-400 shadow-lg border-4 border-yellow-700"></button>
+            </div>
+            <button onclick="cancelWildColor()" class="mt-6 text-gray-400 hover:text-white underline">Cancel</button>
+        </div>
+    </div>
+
+    <div id="winner-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center backdrop-blur-md">
+        <div class="text-center">
+            <h1 class="text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">GAME OVER</h1>
+            <h2 id="winner-name" class="text-4xl text-white font-bold mb-8">Someone Won!</h2>
+            <button onclick="returnToLobby()" class="bg-white text-black hover:bg-gray-200 font-bold py-4 px-8 rounded-full shadow-lg text-xl">Return to Lobby</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // ⚠️ INSTRUCTIONS: PASTE YOUR FIREBASE CONFIG HERE
+        // ==========================================
+            const firebaseConfig = {
+            apiKey: "AIzaSyCx1BYDb6ocTHyGemprGJ4k2B0WkCdUsko",
+            authDomain: "uno-game-2744c.firebaseapp.com",
+            projectId: "uno-game-2744c",
+            storageBucket: "uno-game-2744c.firebasestorage.app",
+            messagingSenderId: "611227753004",
+            appId: "1:611227753004:web:a6aa20ae64ca0061a08f89",
+            measurementId: "G-XENB162S3F"
+        };
+
+        // ==========================================
+
+        if (firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
+            document.getElementById('auth-loading').innerText = "⚠️ Missing Firebase Config! Please add your keys to the HTML file.";
+            document.getElementById('auth-loading').classList.add('text-red-500');
+        } else {
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getFirestore(app);
+
+            let currentUser = null;
+            let currentRoomId = null;
+            let unsubscribeGame = null;
+            let localGameState = null;
+            let pendingWildCardId = null;
+
+            const COLORS = ['red', 'blue', 'green', 'yellow'];
+
+            signInAnonymously(auth).catch(err => {
+                document.getElementById('auth-loading').innerText = "Database connection failed. Check config and rules.";
+            });
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('auth-loading').classList.add('hidden');
+                    document.getElementById('login-form').classList.remove('hidden');
+                    
+                    const savedRoom = localStorage.getItem('uno_room');
+                    const savedName = localStorage.getItem('uno_name');
+                    if (savedName) document.getElementById('player-name').value = savedName;
+                    if (savedRoom) document.getElementById('room-code').value = savedRoom;
+                }
+            });
+
+            const showToast = (msg, isErr = false) => {
+                const t = document.getElementById('toast');
+                t.innerText = msg;
+                t.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-${isErr?'red':'blue'}-600 text-white px-6 py-3 rounded-full shadow-lg font-bold toast-enter`;
+                t.classList.remove('hidden');
+                setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast-enter'); }, 3000);
+            };
+
+            const getRoomRef = (roomId) => doc(db, 'uno_rooms', roomId);
+            const switchScreen = (id) => { ['screen-login', 'screen-lobby', 'screen-game'].forEach(s => document.getElementById(s).classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); };
+
+            const generateDeck = () => {
+                let deck = [];
+                COLORS.forEach(color => {
+                    deck.push({ id: Math.random().toString(36).substring(2), color, value: '0', type: 'number' });
+                    for(let i=1; i<=9; i++) {
+                        deck.push({ id: Math.random().toString(36).substring(2), color, value: i.toString(), type: 'number' });
+                        deck.push({ id: Math.random().toString(36).substring(2), color, value: i.toString(), type: 'number' });
+                    }
+                    ['skip', 'reverse', 'draw2'].forEach(val => {
+                        deck.push({ id: Math.random().toString(36).substring(2), color, value: val, type: val });
+                        deck.push({ id: Math.random().toString(36).substring(2), color, value: val, type: val });
+                    });
+                });
+                for(let i=0; i<4; i++) {
+                    deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild', type: 'wild' });
+                    deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild4', type: 'wild4' });
+                }
+                return deck.sort(() => Math.random() - 0.5);
+            };
+
+            const canPlayCard = (card, state) => {
+                const topCard = state.discardPile[state.discardPile.length - 1];
+                const activeColor = state.currentColor || topCard.color;
+                if (card.color === 'black') return true;
+                if (card.color === activeColor) return true;
+                if (card.value === topCard.value && topCard.color !== 'black') return true;
+                return false;
+            };
+
+            window.createRoom = async () => {
+                const name = document.getElementById('player-name').value.trim();
+                if (!name) return showToast('Enter your name', true);
+                const roomId = Math.random().toString(36).substring(2,6).toUpperCase();
+                
+                await setDoc(getRoomRef(roomId), {
+                    roomId, status: 'lobby', hostId: currentUser.uid, deck: [], discardPile: [], turnIndex: 0, direction: 1, currentColor: '', winner: null,
+                    players: [{ id: currentUser.uid, name, hand: [] }]
+                });
+                
+                localStorage.setItem('uno_name', name); localStorage.setItem('uno_room', roomId);
+                currentRoomId = roomId; listenToRoom(roomId);
+            };
+
+            window.joinRoom = async () => {
+                const name = document.getElementById('player-name').value.trim();
+                const roomId = document.getElementById('room-code').value.trim().toUpperCase();
+                if (!name) return showToast('Enter name', true);
+                if (roomId.length !== 4) return showToast('Invalid room', true);
+
+                const snap = await getDoc(getRoomRef(roomId));
+                if (!snap.exists()) return showToast('Room not found', true);
+                
+                const state = snap.data();
+                if (!state.players.find(p => p.id === currentUser.uid)) {
+                    if (state.status === 'playing') return showToast('Game in progress', true);
+                    if (state.players.length >= 10) return showToast('Room full', true);
+                    await updateDoc(getRoomRef(roomId), { players: [...state.players, { id: currentUser.uid, name, hand: [] }] });
+                }
+                
+                localStorage.setItem('uno_name', name); localStorage.setItem('uno_room', roomId);
+                currentRoomId = roomId; listenToRoom(roomId);
+            };
+
+            window.leaveRoom = async () => {
+                if (!currentRoomId || !localGameState) return;
+                const newPlayers = localGameState.players.filter(p => p.id !== currentUser.uid);
+                try {
+                    if (newPlayers.length > 0) {
+                        let updates = { players: newPlayers };
+                        if (localGameState.hostId === currentUser.uid) updates.hostId = newPlayers[0].id;
+                        await updateDoc(getRoomRef(currentRoomId), updates);
+                    }
+                } catch(e){}
+                if(unsubscribeGame) unsubscribeGame();
+                currentRoomId = null; localGameState = null; switchScreen('screen-login');
+            };
+
+            window.startGame = async () => {
+                if (localGameState.hostId !== currentUser.uid || localGameState.players.length < 2) return;
+                let deck = generateDeck(), players = JSON.parse(JSON.stringify(localGameState.players));
+                players.forEach(p => p.hand = deck.splice(0, 7));
+                let topCard = deck.splice(deck.findIndex(c => c.color !== 'black'), 1)[0];
+                
+                await updateDoc(getRoomRef(currentRoomId), {
+                    status: 'playing', players, deck, discardPile: [topCard], currentColor: topCard.color, turnIndex: 0, direction: 1, winner: null
+                });
+            };
+
+            window.drawCard = async () => {
+                const state = localGameState;
+                if (state.players[state.turnIndex].id !== currentUser.uid || state.status !== 'playing') return;
+                
+                let s = JSON.parse(JSON.stringify(state));
+                let p = s.players.find(x => x.id === currentUser.uid);
+                if (s.deck.length === 0) { s.deck = s.discardPile.splice(0, s.discardPile.length-1).sort(()=>Math.random()-0.5); }
+                p.hand.push(s.deck.pop());
+                s.turnIndex = (s.turnIndex + s.direction + s.players.length) % s.players.length;
+                await updateDoc(getRoomRef(currentRoomId), { deck: s.deck, players: s.players, discardPile: s.discardPile, turnIndex: s.turnIndex });
+            };
+
+            window.attemptPlayCard = (cardId) => {
+                const state = localGameState;
+                if (state.players[state.turnIndex].id !== currentUser.uid || state.status !== 'playing') return;
+                
+                const card = state.players.find(p => p.id === currentUser.uid).hand.find(c => c.id === cardId);
+                if (!canPlayCard(card, state)) return showToast("Can't play that card", true);
+
+                if (card.color === 'black') {
+                    pendingWildCardId = cardId; document.getElementById('color-picker-modal').classList.remove('hidden');
+                } else { executePlayCard(card, card.color); }
+            };
+
+            window.submitWildColor = (color) => {
+                document.getElementById('color-picker-modal').classList.add('hidden');
+                const card = localGameState.players.find(p => p.id === currentUser.uid).hand.find(c => c.id === pendingWildCardId);
+                if (card) executePlayCard(card, color);
+            };
+            window.cancelWildColor = () => { document.getElementById('color-picker-modal').classList.add('hidden'); };
+
+            const executePlayCard = async (card, color) => {
+                let state = JSON.parse(JSON.stringify(localGameState));
+                const meIndex = state.players.findIndex(p => p.id === currentUser.uid);
+                
+                state.players[meIndex].hand = state.players[meIndex].hand.filter(c => c.id !== card.id);
+                state.discardPile.push(card); state.currentColor = color;
+
+                let steps = 1, draws = 0;
+                if (card.type === 'reverse') state.direction *= -1;
+                if (card.type === 'skip') steps = 2;
+                if (card.type === 'draw2') { draws = 2; steps = 2; }
+                if (card.type === 'wild4') { draws = 4; steps = 2; }
+                if (state.players.length === 2 && card.type === 'reverse') steps = 2;
+
+                if (draws > 0) {
+                    let target = state.players[(state.turnIndex + (state.direction * 1) + state.players.length) % state.players.length];
+                    for(let i=0; i<draws; i++) {
+                        if (state.deck.length === 0) state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                        target.hand.push(state.deck.pop());
+                    }
+                }
+
+                if (state.players[meIndex].hand.length === 0) { state.status = 'finished'; state.winner = currentUser.uid; }
+                else { state.turnIndex = (state.turnIndex + (state.direction * steps) + (state.players.length*2)) % state.players.length; }
+
+                await updateDoc(getRoomRef(currentRoomId), state);
+                if (state.players[meIndex].hand.length === 1 && state.status !== 'finished') showToast("UNO!");
+            };
+
+            const listenToRoom = (roomId) => {
+                if(unsubscribeGame) unsubscribeGame();
+                unsubscribeGame = onSnapshot(getRoomRef(roomId), (snap) => {
+                    if (!snap.exists()) { showToast("Room closed", true); leaveRoom(); return; }
+                    localGameState = snap.data(); renderGame(localGameState);
+                });
+            };
+
+            const renderGame = (state) => {
+                if (state.status === 'lobby') {
+                    switchScreen('screen-lobby');
+                    document.getElementById('lobby-room-code').innerText = state.roomId;
+                    document.getElementById('player-count').innerText = state.players.length;
+                    document.getElementById('player-list').innerHTML = state.players.map(p => `
+                        <div class="bg-gray-700 p-3 rounded-lg flex items-center gap-3 border ${p.id === state.hostId ? 'border-yellow-500' : 'border-gray-600'}">
+                            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-sm uppercase">${p.name.charAt(0)}</div>
+                            <div class="flex-1 truncate font-semibold">${p.name}</div>
+                        </div>`).join('');
+                    const isHost = state.hostId === currentUser.uid;
+                    document.getElementById('btn-start-game').classList.toggle('hidden', !isHost);
+                    document.getElementById('waiting-msg').classList.toggle('hidden', isHost);
+                } 
+                else {
+                    switchScreen('screen-game');
+                    document.getElementById('game-room-code').innerText = state.roomId;
+                    const isMyTurn = state.status === 'playing' && state.players[state.turnIndex].id === currentUser.uid;
+                    const me = state.players.find(p => p.id === currentUser.uid);
+                    if(!me) return;
+
+                    document.getElementById('deck-count').innerText = state.deck.length;
+                    document.getElementById('direction-indicator').style.transform = `rotate(${state.direction === 1 ? '0' : '180'}deg) scaleX(${state.direction === 1 ? '1' : '-1'})`;
+                    const colors = { 'red': '#ef4444', 'blue': '#3b82f6', 'green': '#22c55e', 'yellow': '#eab308' };
+                    document.getElementById('current-color-glow').style.backgroundColor = state.currentColor ? colors[state.currentColor] : 'transparent';
+
+                    const banner = document.getElementById('turn-banner');
+                    if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-8 text-3xl font-black uppercase text-yellow-400"; }
+                    else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-8 text-3xl font-black uppercase text-green-400 animate-bounce"; }
+                    else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-8 text-xl font-black uppercase text-white"; }
+
+                    if (state.discardPile.length > 0) document.getElementById('discard-pile').innerHTML = createCardHTML(state.discardPile[state.discardPile.length - 1], false);
+
+                    const handContainer = document.getElementById('my-hand'); handContainer.innerHTML = '';
+                    me.hand.forEach(card => {
+                        const playable = isMyTurn && canPlayCard(card, state);
+                        const div = document.createElement('div'); div.innerHTML = createCardHTML(card, playable, true);
+                        if(playable) div.firstElementChild.onclick = () => attemptPlayCard(card.id);
+                        handContainer.appendChild(div.firstElementChild);
+                    });
+
+                    document.getElementById('btn-draw').disabled = !isMyTurn;
+
+                    const opps = document.getElementById('opponents-container'); opps.innerHTML = '';
+                    state.players.forEach((p, idx) => {
+                        if (p.id === currentUser.uid) return;
+                        const isActive = idx === state.turnIndex && state.status === 'playing';
+                        opps.innerHTML += `
+                            <div class="glass-panel rounded-xl p-3 flex flex-col items-center min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'}">
+                                <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-2 shadow-inner">${p.name.charAt(0).toUpperCase()}</div>
+                                <div class="text-sm font-bold truncate w-20 text-center">${p.name}</div>
+                                <div class="mt-2 bg-gray-800 rounded-full px-3 py-1 text-sm font-mono font-bold"><i class="fas fa-layer-group text-yellow-500"></i> ${p.hand.length}</div>
+                            </div>`;
+                    });
+
+                    if (state.status === 'finished') {
+                        document.getElementById('winner-name').innerText = `${state.players.find(p => p.id === state.winner)?.name} Wins!`;
+                        document.getElementById('winner-modal').classList.remove('hidden');
+                    }
+                }
+            };
+
+            const createCardHTML = (c, p, h) => {
+                let v = c.value, i = '';
+                if(c.type=='skip') i='<i class="fas fa-ban"></i>'; else if(c.type=='reverse') i='<i class="fas fa-sync-alt"></i>'; else if(c.type=='draw2') i='+2'; else if(c.type=='wild') v='WILD'; else if(c.type=='wild4') v='+4';
+                const cv = i||v, cc = i||(c.type.includes('wild')?'':v);
+                return `<div class="uno-card card-${c.color} ${!p&&h?'disabled':''}" data-id="${c.id}">
+                    <div class="uno-card-corner top-left">${cc}</div>
+                    <div class="uno-card-inner border-opacity-50 border-white bg-opacity-20"><span class="uno-card-value text-center">${cv}</span></div>
+                    <div class="uno-card-corner bottom-right">${cc}</div></div>`;
+            };
+
+            window.returnToLobby = async () => {
+                if (localGameState.hostId === currentUser.uid) await updateDoc(getRoomRef(currentRoomId), { status: 'lobby', winner: null, deck: [], discardPile: [], currentColor: '' });
+                document.getElementById('winner-modal').classList.add('hidden');
+            };
+        }
+    </script>
+</body>
+</html>
+
+
+```
+
