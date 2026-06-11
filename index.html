@@ -43,11 +43,11 @@
         .uno-card-corner.top-left { top: 4px; left: 6px; }
         .uno-card-corner.bottom-right { bottom: 4px; right: 6px; transform: rotate(180deg); }
 
-        .card-red { background-color: #ff5555; }
-        .card-blue { background-color: #5555ff; }
-        .card-green { background-color: #55aa55; }
-        .card-yellow { background-color: #ffaa00; }
-        .card-black { background: linear-gradient(135deg, #ff5555 25%, #5555ff 25%, #5555ff 50%, #ffaa00 50%, #ffaa00 75%, #55aa55 75%); }
+        .card-red { background-color: #ef4444; }
+        .card-blue { background-color: #3b82f6; }
+        .card-green { background-color: #22c55e; }
+        .card-yellow { background-color: #eab308; }
+        .card-black { background: linear-gradient(135deg, #ef4444 25%, #3b82f6 25%, #3b82f6 50%, #eab308 50%, #eab308 75%, #22c55e 75%); }
 
         .hand-container { display: flex; overflow-x: auto; padding-bottom: 20px; padding-top: 20px; gap: -40px; }
         .hand-container > div { margin-right: -40px; flex-shrink: 0; }
@@ -164,10 +164,10 @@
         <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-4 pb-8 flex flex-col relative z-20">
             <div class="flex justify-between items-end mb-2 px-4">
                 <div class="text-xl font-bold" id="my-name-display">You</div>
-                <div class="flex gap-4">
-                    <button id="btn-draw" onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded font-bold shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-plus"></i> Draw
-                    </button>
+                
+                <!-- Dynamic Action Buttons Container -->
+                <div class="flex gap-2 sm:gap-4" id="action-buttons">
+                    <!-- Buttons generated dynamically in JS -->
                 </div>
             </div>
             <div id="my-hand" class="hand-container px-8 min-h-[140px] flex items-center justify-center sm:justify-start"></div>
@@ -203,9 +203,9 @@
         import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        // ⚠️ INSTRUCTIONS: PASTE YOUR FIREBASE CONFIG HERE
+        // FIREBASE CONFIGURATION 
         // ==========================================
-            const firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyCx1BYDb6ocTHyGemprGJ4k2B0WkCdUsko",
             authDomain: "uno-game-2744c.firebaseapp.com",
             projectId: "uno-game-2744c",
@@ -215,289 +215,428 @@
             measurementId: "G-XENB162S3F"
         };
 
-        // ==========================================
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        if (firebaseConfig.apiKey === "PASTE_YOUR_API_KEY_HERE") {
-            document.getElementById('auth-loading').innerText = "⚠️ Missing Firebase Config! Please add your keys to the HTML file.";
-            document.getElementById('auth-loading').classList.add('text-red-500');
-        } else {
-            const app = initializeApp(firebaseConfig);
-            const auth = getAuth(app);
-            const db = getFirestore(app);
+        let currentUser = null;
+        let currentRoomId = null;
+        let unsubscribeGame = null;
+        let localGameState = null;
+        let pendingWildCardId = null;
+        let localLastActionTs = 0;
 
-            let currentUser = null;
-            let currentRoomId = null;
-            let unsubscribeGame = null;
-            let localGameState = null;
-            let pendingWildCardId = null;
+        const COLORS = ['red', 'blue', 'green', 'yellow'];
 
-            const COLORS = ['red', 'blue', 'green', 'yellow'];
+        signInAnonymously(auth).catch(err => {
+            document.getElementById('auth-loading').innerText = "Database connection failed. Check config and rules.";
+        });
 
-            signInAnonymously(auth).catch(err => {
-                document.getElementById('auth-loading').innerText = "Database connection failed. Check config and rules.";
-            });
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-loading').classList.add('hidden');
+                document.getElementById('login-form').classList.remove('hidden');
+                
+                const savedRoom = localStorage.getItem('uno_room');
+                const savedName = localStorage.getItem('uno_name');
+                if (savedName) document.getElementById('player-name').value = savedName;
+                if (savedRoom) document.getElementById('room-code').value = savedRoom;
+            }
+        });
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    document.getElementById('auth-loading').classList.add('hidden');
-                    document.getElementById('login-form').classList.remove('hidden');
-                    
-                    const savedRoom = localStorage.getItem('uno_room');
-                    const savedName = localStorage.getItem('uno_name');
-                    if (savedName) document.getElementById('player-name').value = savedName;
-                    if (savedRoom) document.getElementById('room-code').value = savedRoom;
+        const showToast = (msg, isImportant = false) => {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.className = `fixed top-10 left-1/2 transform -translate-x-1/2 z-50 bg-${isImportant?'red':'blue'}-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black toast-enter border-2 border-white`;
+            t.classList.remove('hidden');
+            setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast-enter'); }, 4000);
+        };
+
+        const getRoomRef = (roomId) => doc(db, 'uno_rooms', roomId);
+        const switchScreen = (id) => { ['screen-login', 'screen-lobby', 'screen-game'].forEach(s => document.getElementById(s).classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); };
+
+        const generateDeck = () => {
+            let deck = [];
+            COLORS.forEach(color => {
+                deck.push({ id: Math.random().toString(36).substring(2), color, value: '0', type: 'number' });
+                for(let i=1; i<=9; i++) {
+                    deck.push({ id: Math.random().toString(36).substring(2), color, value: i.toString(), type: 'number' });
+                    deck.push({ id: Math.random().toString(36).substring(2), color, value: i.toString(), type: 'number' });
                 }
-            });
-
-            const showToast = (msg, isErr = false) => {
-                const t = document.getElementById('toast');
-                t.innerText = msg;
-                t.className = `fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-${isErr?'red':'blue'}-600 text-white px-6 py-3 rounded-full shadow-lg font-bold toast-enter`;
-                t.classList.remove('hidden');
-                setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast-enter'); }, 3000);
-            };
-
-            const getRoomRef = (roomId) => doc(db, 'uno_rooms', roomId);
-            const switchScreen = (id) => { ['screen-login', 'screen-lobby', 'screen-game'].forEach(s => document.getElementById(s).classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); };
-
-            const generateDeck = () => {
-                let deck = [];
-                COLORS.forEach(color => {
-                    deck.push({ id: Math.random().toString(36).substring(2), color, value: '0', type: 'number' });
-                    for(let i=1; i<=9; i++) {
-                        deck.push({ id: Math.random().toString(36).substring(2), color, value: i.toString(), type: 'number' });
-                        deck.push({ id: Math.random().toString(36).substring(2), color, value: i.toString(), type: 'number' });
-                    }
-                    ['skip', 'reverse', 'draw2'].forEach(val => {
-                        deck.push({ id: Math.random().toString(36).substring(2), color, value: val, type: val });
-                        deck.push({ id: Math.random().toString(36).substring(2), color, value: val, type: val });
-                    });
+                ['skip', 'reverse', 'draw2'].forEach(val => {
+                    deck.push({ id: Math.random().toString(36).substring(2), color, value: val, type: val });
+                    deck.push({ id: Math.random().toString(36).substring(2), color, value: val, type: val });
                 });
-                for(let i=0; i<4; i++) {
-                    deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild', type: 'wild' });
-                    deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild4', type: 'wild4' });
-                }
-                return deck.sort(() => Math.random() - 0.5);
-            };
+            });
+            for(let i=0; i<4; i++) {
+                deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild', type: 'wild' });
+                deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild4', type: 'wild4' });
+            }
+            return deck.sort(() => Math.random() - 0.5);
+        };
 
-            const canPlayCard = (card, state) => {
+        const canPlayCard = (card, state) => {
+            if (state.turnState === 'start') {
+                if (state.pendingDraws > 0) {
+                    // Penalty stacking defense: Must play a draw card
+                    return (card.type === 'draw2' || card.type === 'wild4');
+                }
                 const topCard = state.discardPile[state.discardPile.length - 1];
                 const activeColor = state.currentColor || topCard.color;
                 if (card.color === 'black') return true;
                 if (card.color === activeColor) return true;
                 if (card.value === topCard.value && topCard.color !== 'black') return true;
                 return false;
-            };
+            } else if (state.turnState === 'chained') {
+                // Must exactly match the value of the active chain
+                return card.value === state.chainValue;
+            } else if (state.turnState === 'drew') {
+                // Evaluated same as normal start, but no pending draws possible
+                const topCard = state.discardPile[state.discardPile.length - 1];
+                const activeColor = state.currentColor || topCard.color;
+                if (card.color === 'black') return true;
+                if (card.color === activeColor) return true;
+                if (card.value === topCard.value && topCard.color !== 'black') return true;
+                return false;
+            }
+            return false;
+        };
 
-            window.createRoom = async () => {
-                const name = document.getElementById('player-name').value.trim();
-                if (!name) return showToast('Enter your name', true);
-                const roomId = Math.random().toString(36).substring(2,6).toUpperCase();
-                
-                await setDoc(getRoomRef(roomId), {
-                    roomId, status: 'lobby', hostId: currentUser.uid, deck: [], discardPile: [], turnIndex: 0, direction: 1, currentColor: '', winner: null,
-                    players: [{ id: currentUser.uid, name, hand: [] }]
-                });
-                
-                localStorage.setItem('uno_name', name); localStorage.setItem('uno_room', roomId);
-                currentRoomId = roomId; listenToRoom(roomId);
-            };
+        window.createRoom = async () => {
+            const name = document.getElementById('player-name').value.trim();
+            if (!name) return showToast('Enter your name', true);
+            const roomId = Math.random().toString(36).substring(2,6).toUpperCase();
+            
+            await setDoc(getRoomRef(roomId), {
+                roomId, status: 'lobby', hostId: currentUser.uid, deck: [], discardPile: [], 
+                turnIndex: 0, direction: 1, currentColor: '', winner: null,
+                turnState: 'start', chainValue: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, lastAction: {msg:'', ts:0},
+                players: [{ id: currentUser.uid, name, hand: [], unoCalled: false }]
+            });
+            
+            localStorage.setItem('uno_name', name); localStorage.setItem('uno_room', roomId);
+            currentRoomId = roomId; listenToRoom(roomId);
+        };
 
-            window.joinRoom = async () => {
-                const name = document.getElementById('player-name').value.trim();
-                const roomId = document.getElementById('room-code').value.trim().toUpperCase();
-                if (!name) return showToast('Enter name', true);
-                if (roomId.length !== 4) return showToast('Invalid room', true);
+        window.joinRoom = async () => {
+            const name = document.getElementById('player-name').value.trim();
+            const roomId = document.getElementById('room-code').value.trim().toUpperCase();
+            if (!name) return showToast('Enter name', true);
+            if (roomId.length !== 4) return showToast('Invalid room', true);
 
-                const snap = await getDoc(getRoomRef(roomId));
-                if (!snap.exists()) return showToast('Room not found', true);
-                
-                const state = snap.data();
-                if (!state.players.find(p => p.id === currentUser.uid)) {
-                    if (state.status === 'playing') return showToast('Game in progress', true);
-                    if (state.players.length >= 10) return showToast('Room full', true);
-                    await updateDoc(getRoomRef(roomId), { players: [...state.players, { id: currentUser.uid, name, hand: [] }] });
+            const snap = await getDoc(getRoomRef(roomId));
+            if (!snap.exists()) return showToast('Room not found', true);
+            
+            const state = snap.data();
+            if (!state.players.find(p => p.id === currentUser.uid)) {
+                if (state.status === 'playing') return showToast('Game in progress', true);
+                if (state.players.length >= 10) return showToast('Room full', true);
+                await updateDoc(getRoomRef(roomId), { players: [...state.players, { id: currentUser.uid, name, hand: [], unoCalled: false }] });
+            }
+            
+            localStorage.setItem('uno_name', name); localStorage.setItem('uno_room', roomId);
+            currentRoomId = roomId; listenToRoom(roomId);
+        };
+
+        window.leaveRoom = async () => {
+            if (!currentRoomId || !localGameState) return;
+            const newPlayers = localGameState.players.filter(p => p.id !== currentUser.uid);
+            try {
+                if (newPlayers.length > 0) {
+                    let updates = { players: newPlayers };
+                    if (localGameState.hostId === currentUser.uid) updates.hostId = newPlayers[0].id;
+                    await updateDoc(getRoomRef(currentRoomId), updates);
                 }
-                
-                localStorage.setItem('uno_name', name); localStorage.setItem('uno_room', roomId);
-                currentRoomId = roomId; listenToRoom(roomId);
-            };
+            } catch(e){}
+            if(unsubscribeGame) unsubscribeGame();
+            currentRoomId = null; localGameState = null; switchScreen('screen-login');
+        };
 
-            window.leaveRoom = async () => {
-                if (!currentRoomId || !localGameState) return;
-                const newPlayers = localGameState.players.filter(p => p.id !== currentUser.uid);
-                try {
-                    if (newPlayers.length > 0) {
-                        let updates = { players: newPlayers };
-                        if (localGameState.hostId === currentUser.uid) updates.hostId = newPlayers[0].id;
-                        await updateDoc(getRoomRef(currentRoomId), updates);
-                    }
-                } catch(e){}
-                if(unsubscribeGame) unsubscribeGame();
-                currentRoomId = null; localGameState = null; switchScreen('screen-login');
-            };
+        window.startGame = async () => {
+            if (localGameState.hostId !== currentUser.uid || localGameState.players.length < 2) return;
+            let deck = generateDeck(), players = JSON.parse(JSON.stringify(localGameState.players));
+            players.forEach(p => { p.hand = deck.splice(0, 7); p.unoCalled = false; });
+            let topCard = deck.splice(deck.findIndex(c => c.color !== 'black'), 1)[0];
+            
+            await updateDoc(getRoomRef(currentRoomId), {
+                status: 'playing', players, deck, discardPile: [topCard], currentColor: topCard.color, 
+                turnIndex: 0, direction: 1, winner: null, catchTarget: null,
+                turnState: 'start', chainValue: null, pendingDraws: 0, pendingSkips: 0,
+                lastAction: { msg: 'Game Started!', ts: Date.now() }
+            });
+        };
 
-            window.startGame = async () => {
-                if (localGameState.hostId !== currentUser.uid || localGameState.players.length < 2) return;
-                let deck = generateDeck(), players = JSON.parse(JSON.stringify(localGameState.players));
-                players.forEach(p => p.hand = deck.splice(0, 7));
-                let topCard = deck.splice(deck.findIndex(c => c.color !== 'black'), 1)[0];
-                
-                await updateDoc(getRoomRef(currentRoomId), {
-                    status: 'playing', players, deck, discardPile: [topCard], currentColor: topCard.color, turnIndex: 0, direction: 1, winner: null
-                });
-            };
+        // NEW RULES ACTIONS
+        window.callUno = async () => {
+            let state = JSON.parse(JSON.stringify(localGameState));
+            let me = state.players.find(p => p.id === currentUser.uid);
+            if (!me) return;
+            me.unoCalled = true;
+            if (state.catchTarget === currentUser.uid) state.catchTarget = null;
+            await updateDoc(getRoomRef(currentRoomId), state);
+        };
 
-            window.drawCard = async () => {
-                const state = localGameState;
-                if (state.players[state.turnIndex].id !== currentUser.uid || state.status !== 'playing') return;
-                
-                let s = JSON.parse(JSON.stringify(state));
-                let p = s.players.find(x => x.id === currentUser.uid);
-                if (s.deck.length === 0) { s.deck = s.discardPile.splice(0, s.discardPile.length-1).sort(()=>Math.random()-0.5); }
-                p.hand.push(s.deck.pop());
+        window.catchPlayer = async () => {
+            let state = JSON.parse(JSON.stringify(localGameState));
+            if (!state.catchTarget || state.catchTarget === currentUser.uid) return;
+            
+            let targetId = state.catchTarget;
+            let target = state.players.find(p => p.id === targetId);
+            let catcher = state.players.find(p => p.id === currentUser.uid);
+            
+            if (state.deck.length === 0) state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+            if (state.deck.length > 0) target.hand.push(state.deck.pop());
+            
+            state.lastAction = { msg: `🚨 ${catcher.name} CATCHED ${target.name}! (+1 Card) 🚨`, ts: Date.now() };
+            state.catchTarget = null;
+            
+            await updateDoc(getRoomRef(currentRoomId), state);
+        };
+
+        window.passTurn = async () => {
+            let state = JSON.parse(JSON.stringify(localGameState));
+            if (state.players[state.turnIndex].id !== currentUser.uid) return;
+
+            let steps = 1 + (state.pendingSkips || 0);
+            state.turnIndex = (state.turnIndex + (state.direction * steps) + (state.players.length * 10)) % state.players.length;
+            
+            state.turnState = 'start';
+            state.chainValue = null;
+            state.pendingSkips = 0;
+            
+            // Clean up flags
+            let me = state.players.find(p => p.id === currentUser.uid);
+            me.unoCalled = false;
+
+            await updateDoc(getRoomRef(currentRoomId), state);
+        };
+
+        window.drawCard = async () => {
+            const state = localGameState;
+            if (state.players[state.turnIndex].id !== currentUser.uid) return;
+            if (state.turnState !== 'start') return; 
+            
+            let s = JSON.parse(JSON.stringify(state));
+            let p = s.players.find(x => x.id === currentUser.uid);
+            
+            if (s.pendingDraws > 0) {
+                // Absorb stacked penalty cards & instantly pass turn
+                for(let i=0; i<s.pendingDraws; i++) {
+                    if (s.deck.length === 0) s.deck = s.discardPile.splice(0, s.discardPile.length-1).sort(()=>Math.random()-0.5);
+                    if(s.deck.length > 0) p.hand.push(s.deck.pop());
+                }
+                s.pendingDraws = 0;
                 s.turnIndex = (s.turnIndex + s.direction + s.players.length) % s.players.length;
-                await updateDoc(getRoomRef(currentRoomId), { deck: s.deck, players: s.players, discardPile: s.discardPile, turnIndex: s.turnIndex });
-            };
-
-            window.attemptPlayCard = (cardId) => {
-                const state = localGameState;
-                if (state.players[state.turnIndex].id !== currentUser.uid || state.status !== 'playing') return;
+                s.turnState = 'start';
+                s.chainValue = null;
+            } else {
+                // Normal single draw, allows playing after
+                if (s.deck.length === 0) s.deck = s.discardPile.splice(0, s.discardPile.length-1).sort(()=>Math.random()-0.5);
+                if(s.deck.length > 0) p.hand.push(s.deck.pop());
                 
-                const card = state.players.find(p => p.id === currentUser.uid).hand.find(c => c.id === cardId);
-                if (!canPlayCard(card, state)) return showToast("Can't play that card", true);
+                s.turnState = 'drew';
+                p.unoCalled = false;
+                if (s.catchTarget === currentUser.uid) s.catchTarget = null;
+            }
 
-                if (card.color === 'black') {
-                    pendingWildCardId = cardId; document.getElementById('color-picker-modal').classList.remove('hidden');
-                } else { executePlayCard(card, card.color); }
-            };
+            await updateDoc(getRoomRef(currentRoomId), s);
+        };
 
-            window.submitWildColor = (color) => {
-                document.getElementById('color-picker-modal').classList.add('hidden');
-                const card = localGameState.players.find(p => p.id === currentUser.uid).hand.find(c => c.id === pendingWildCardId);
-                if (card) executePlayCard(card, color);
-            };
-            window.cancelWildColor = () => { document.getElementById('color-picker-modal').classList.add('hidden'); };
+        window.attemptPlayCard = (cardId) => {
+            const state = localGameState;
+            if (state.players[state.turnIndex].id !== currentUser.uid || state.status !== 'playing') return;
+            
+            const card = state.players.find(p => p.id === currentUser.uid).hand.find(c => c.id === cardId);
+            if (!canPlayCard(card, state)) return showToast("Can't play that card now", true);
 
-            const executePlayCard = async (card, color) => {
-                let state = JSON.parse(JSON.stringify(localGameState));
-                const meIndex = state.players.findIndex(p => p.id === currentUser.uid);
+            if (card.color === 'black') {
+                pendingWildCardId = cardId; document.getElementById('color-picker-modal').classList.remove('hidden');
+            } else { executePlayCard(card, card.color); }
+        };
+
+        window.submitWildColor = (color) => {
+            document.getElementById('color-picker-modal').classList.add('hidden');
+            const card = localGameState.players.find(p => p.id === currentUser.uid).hand.find(c => c.id === pendingWildCardId);
+            if (card) executePlayCard(card, color);
+        };
+        window.cancelWildColor = () => { document.getElementById('color-picker-modal').classList.add('hidden'); };
+
+        const executePlayCard = async (card, color) => {
+            let state = JSON.parse(JSON.stringify(localGameState));
+            const meIndex = state.players.findIndex(p => p.id === currentUser.uid);
+            let me = state.players[meIndex];
+            
+            me.hand = me.hand.filter(c => c.id !== card.id);
+            state.discardPile.push(card); 
+            state.currentColor = color;
+
+            state.turnState = 'chained';
+            state.chainValue = card.value;
+
+            // Penalty accumulation
+            if (card.type === 'draw2') state.pendingDraws += 2;
+            if (card.type === 'wild4') state.pendingDraws += 4;
+            
+            if (card.type === 'skip') state.pendingSkips += 1;
+            if (card.type === 'reverse') {
+                if (state.players.length === 2) state.pendingSkips += 1;
+                else state.direction *= -1;
+            }
+
+            // Catch Logic evaluation
+            if (me.hand.length === 1 && !me.unoCalled) {
+                state.catchTarget = currentUser.uid;
+            }
+            if (me.hand.length > 1) {
+                me.unoCalled = false;
+                if (state.catchTarget === currentUser.uid) state.catchTarget = null;
+            }
+
+            if (me.hand.length === 0) { 
+                state.status = 'finished'; 
+                state.winner = currentUser.uid; 
+                state.catchTarget = null;
+            }
+
+            await updateDoc(getRoomRef(currentRoomId), state);
+        };
+
+        const listenToRoom = (roomId) => {
+            if(unsubscribeGame) unsubscribeGame();
+            unsubscribeGame = onSnapshot(getRoomRef(roomId), (snap) => {
+                if (!snap.exists()) { showToast("Room closed", true); leaveRoom(); return; }
+                localGameState = snap.data(); 
                 
-                state.players[meIndex].hand = state.players[meIndex].hand.filter(c => c.id !== card.id);
-                state.discardPile.push(card); state.currentColor = color;
+                // Show global Toasts (like Caught messages)
+                if (localGameState.lastAction && localGameState.lastAction.ts > localLastActionTs) {
+                    showToast(localGameState.lastAction.msg, localGameState.lastAction.msg.includes('CATCH'));
+                    localLastActionTs = localGameState.lastAction.ts;
+                }
+                
+                renderGame(localGameState);
+            });
+        };
 
-                let steps = 1, draws = 0;
-                if (card.type === 'reverse') state.direction *= -1;
-                if (card.type === 'skip') steps = 2;
-                if (card.type === 'draw2') { draws = 2; steps = 2; }
-                if (card.type === 'wild4') { draws = 4; steps = 2; }
-                if (state.players.length === 2 && card.type === 'reverse') steps = 2;
+        const renderGame = (state) => {
+            if (state.status === 'lobby') {
+                switchScreen('screen-lobby');
+                document.getElementById('lobby-room-code').innerText = state.roomId;
+                document.getElementById('player-count').innerText = state.players.length;
+                document.getElementById('player-list').innerHTML = state.players.map(p => `
+                    <div class="bg-gray-700 p-3 rounded-lg flex items-center gap-3 border ${p.id === state.hostId ? 'border-yellow-500' : 'border-gray-600'}">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-sm uppercase">${p.name.charAt(0)}</div>
+                        <div class="flex-1 truncate font-semibold">${p.name}</div>
+                    </div>`).join('');
+                const isHost = state.hostId === currentUser.uid;
+                document.getElementById('btn-start-game').classList.toggle('hidden', !isHost);
+                document.getElementById('waiting-msg').classList.toggle('hidden', isHost);
+            } 
+            else {
+                switchScreen('screen-game');
+                document.getElementById('game-room-code').innerText = state.roomId;
+                const isMyTurn = state.status === 'playing' && state.players[state.turnIndex].id === currentUser.uid;
+                const me = state.players.find(p => p.id === currentUser.uid);
+                if(!me) return;
 
-                if (draws > 0) {
-                    let target = state.players[(state.turnIndex + (state.direction * 1) + state.players.length) % state.players.length];
-                    for(let i=0; i<draws; i++) {
-                        if (state.deck.length === 0) state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
-                        target.hand.push(state.deck.pop());
+                document.getElementById('deck-count').innerText = state.deck.length;
+                document.getElementById('direction-indicator').style.transform = `rotate(${state.direction === 1 ? '0' : '180'}deg) scaleX(${state.direction === 1 ? '1' : '-1'})`;
+                const colors = { 'red': '#ef4444', 'blue': '#3b82f6', 'green': '#22c55e', 'yellow': '#eab308' };
+                document.getElementById('current-color-glow').style.backgroundColor = state.currentColor ? colors[state.currentColor] : 'transparent';
+
+                const banner = document.getElementById('turn-banner');
+                if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-8 text-3xl font-black uppercase text-yellow-400"; }
+                else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-8 text-3xl font-black uppercase text-green-400 animate-bounce"; }
+                else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-8 text-xl font-black uppercase text-white"; }
+
+                if (state.discardPile.length > 0) document.getElementById('discard-pile').innerHTML = createCardHTML(state.discardPile[state.discardPile.length - 1], false);
+
+                // DYNAMIC ACTION BUTTONS RENDER
+                const actionContainer = document.getElementById('action-buttons');
+                actionContainer.innerHTML = '';
+
+                // 1. CATCH button (Shows if someone is catchable, and it's NOT you)
+                if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
+                    actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CATCH!</button>`;
+                }
+
+                // Buttons visible only to the active player
+                if (isMyTurn) {
+                    // 2. UNO Button
+                    if (me.hand.length === 2 && !me.unoCalled) {
+                        actionContainer.innerHTML += `<button onclick="callUno()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-2 rounded-lg font-black shadow-[0_0_15px_rgba(234,179,8,0.8)] border-2 border-white animate-bounce">UNO!</button>`;
+                    }
+
+                    // 3. Draw or Take Penalty cards
+                    if (state.turnState === 'start') {
+                        if (state.pendingDraws > 0) {
+                            actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws}</button>`;
+                        } else {
+                            actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white border border-blue-400"><i class="fas fa-plus"></i> Draw</button>`;
+                        }
+                    }
+
+                    // 4. Forfeit/Pass Turn
+                    if (state.turnState === 'chained' || state.turnState === 'drew') {
+                        actionContainer.innerHTML += `<button onclick="passTurn()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-gray-400"><i class="fas fa-forward"></i> Pass Turn</button>`;
                     }
                 }
 
-                if (state.players[meIndex].hand.length === 0) { state.status = 'finished'; state.winner = currentUser.uid; }
-                else { state.turnIndex = (state.turnIndex + (state.direction * steps) + (state.players.length*2)) % state.players.length; }
-
-                await updateDoc(getRoomRef(currentRoomId), state);
-                if (state.players[meIndex].hand.length === 1 && state.status !== 'finished') showToast("UNO!");
-            };
-
-            const listenToRoom = (roomId) => {
-                if(unsubscribeGame) unsubscribeGame();
-                unsubscribeGame = onSnapshot(getRoomRef(roomId), (snap) => {
-                    if (!snap.exists()) { showToast("Room closed", true); leaveRoom(); return; }
-                    localGameState = snap.data(); renderGame(localGameState);
+                const handContainer = document.getElementById('my-hand'); handContainer.innerHTML = '';
+                me.hand.forEach(card => {
+                    const playable = isMyTurn && canPlayCard(card, state);
+                    const div = document.createElement('div'); div.innerHTML = createCardHTML(card, playable, true);
+                    if(playable) div.firstElementChild.onclick = () => attemptPlayCard(card.id);
+                    handContainer.appendChild(div.firstElementChild);
                 });
-            };
 
-            const renderGame = (state) => {
-                if (state.status === 'lobby') {
-                    switchScreen('screen-lobby');
-                    document.getElementById('lobby-room-code').innerText = state.roomId;
-                    document.getElementById('player-count').innerText = state.players.length;
-                    document.getElementById('player-list').innerHTML = state.players.map(p => `
-                        <div class="bg-gray-700 p-3 rounded-lg flex items-center gap-3 border ${p.id === state.hostId ? 'border-yellow-500' : 'border-gray-600'}">
-                            <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-sm uppercase">${p.name.charAt(0)}</div>
-                            <div class="flex-1 truncate font-semibold">${p.name}</div>
-                        </div>`).join('');
-                    const isHost = state.hostId === currentUser.uid;
-                    document.getElementById('btn-start-game').classList.toggle('hidden', !isHost);
-                    document.getElementById('waiting-msg').classList.toggle('hidden', isHost);
-                } 
-                else {
-                    switchScreen('screen-game');
-                    document.getElementById('game-room-code').innerText = state.roomId;
-                    const isMyTurn = state.status === 'playing' && state.players[state.turnIndex].id === currentUser.uid;
-                    const me = state.players.find(p => p.id === currentUser.uid);
-                    if(!me) return;
+                const opps = document.getElementById('opponents-container'); opps.innerHTML = '';
+                state.players.forEach((p, idx) => {
+                    if (p.id === currentUser.uid) return;
+                    const isActive = idx === state.turnIndex && state.status === 'playing';
+                    const isCatchable = p.id === state.catchTarget;
+                    
+                    opps.innerHTML += `
+                        <div class="glass-panel rounded-xl p-3 flex flex-col items-center min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'} ${isCatchable ? 'ring-4 ring-red-500 animate-pulse' : ''}">
+                            <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-2 shadow-inner">${p.name.charAt(0).toUpperCase()}</div>
+                            <div class="text-sm font-bold truncate w-20 text-center">${p.name}</div>
+                            <div class="mt-2 bg-gray-800 rounded-full px-3 py-1 text-sm font-mono font-bold flex items-center gap-2">
+                                <i class="fas fa-layer-group text-yellow-500"></i> ${p.hand.length}
+                            </div>
+                            ${p.unoCalled ? '<div class="text-[10px] text-yellow-400 font-black uppercase mt-1">UNO Called</div>' : ''}
+                        </div>`;
+                });
 
-                    document.getElementById('deck-count').innerText = state.deck.length;
-                    document.getElementById('direction-indicator').style.transform = `rotate(${state.direction === 1 ? '0' : '180'}deg) scaleX(${state.direction === 1 ? '1' : '-1'})`;
-                    const colors = { 'red': '#ef4444', 'blue': '#3b82f6', 'green': '#22c55e', 'yellow': '#eab308' };
-                    document.getElementById('current-color-glow').style.backgroundColor = state.currentColor ? colors[state.currentColor] : 'transparent';
-
-                    const banner = document.getElementById('turn-banner');
-                    if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-8 text-3xl font-black uppercase text-yellow-400"; }
-                    else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-8 text-3xl font-black uppercase text-green-400 animate-bounce"; }
-                    else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-8 text-xl font-black uppercase text-white"; }
-
-                    if (state.discardPile.length > 0) document.getElementById('discard-pile').innerHTML = createCardHTML(state.discardPile[state.discardPile.length - 1], false);
-
-                    const handContainer = document.getElementById('my-hand'); handContainer.innerHTML = '';
-                    me.hand.forEach(card => {
-                        const playable = isMyTurn && canPlayCard(card, state);
-                        const div = document.createElement('div'); div.innerHTML = createCardHTML(card, playable, true);
-                        if(playable) div.firstElementChild.onclick = () => attemptPlayCard(card.id);
-                        handContainer.appendChild(div.firstElementChild);
-                    });
-
-                    document.getElementById('btn-draw').disabled = !isMyTurn;
-
-                    const opps = document.getElementById('opponents-container'); opps.innerHTML = '';
-                    state.players.forEach((p, idx) => {
-                        if (p.id === currentUser.uid) return;
-                        const isActive = idx === state.turnIndex && state.status === 'playing';
-                        opps.innerHTML += `
-                            <div class="glass-panel rounded-xl p-3 flex flex-col items-center min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'}">
-                                <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-2 shadow-inner">${p.name.charAt(0).toUpperCase()}</div>
-                                <div class="text-sm font-bold truncate w-20 text-center">${p.name}</div>
-                                <div class="mt-2 bg-gray-800 rounded-full px-3 py-1 text-sm font-mono font-bold"><i class="fas fa-layer-group text-yellow-500"></i> ${p.hand.length}</div>
-                            </div>`;
-                    });
-
-                    if (state.status === 'finished') {
-                        document.getElementById('winner-name').innerText = `${state.players.find(p => p.id === state.winner)?.name} Wins!`;
-                        document.getElementById('winner-modal').classList.remove('hidden');
-                    }
+                if (state.status === 'finished') {
+                    document.getElementById('winner-name').innerText = `${state.players.find(p => p.id === state.winner)?.name} Wins!`;
+                    document.getElementById('winner-modal').classList.remove('hidden');
                 }
-            };
+            }
+        };
 
-            const createCardHTML = (c, p, h) => {
-                let v = c.value, i = '';
-                if(c.type=='skip') i='<i class="fas fa-ban"></i>'; else if(c.type=='reverse') i='<i class="fas fa-sync-alt"></i>'; else if(c.type=='draw2') i='+2'; else if(c.type=='wild') v='WILD'; else if(c.type=='wild4') v='+4';
-                const cv = i||v, cc = i||(c.type.includes('wild')?'':v);
-                return `<div class="uno-card card-${c.color} ${!p&&h?'disabled':''}" data-id="${c.id}">
-                    <div class="uno-card-corner top-left">${cc}</div>
-                    <div class="uno-card-inner border-opacity-50 border-white bg-opacity-20"><span class="uno-card-value text-center">${cv}</span></div>
-                    <div class="uno-card-corner bottom-right">${cc}</div></div>`;
-            };
+        const createCardHTML = (c, p, h) => {
+            let v = c.value, i = '';
+            if(c.type=='skip') i='<i class="fas fa-ban"></i>'; else if(c.type=='reverse') i='<i class="fas fa-sync-alt"></i>'; else if(c.type=='draw2') i='+2'; else if(c.type=='wild') v='WILD'; else if(c.type=='wild4') v='+4';
+            const cv = i||v, cc = i||(c.type.includes('wild')?'':v);
+            return `<div class="uno-card card-${c.color} ${!p&&h?'disabled':''}" data-id="${c.id}">
+                <div class="uno-card-corner top-left">${cc}</div>
+                <div class="uno-card-inner border-opacity-50 border-white bg-opacity-20"><span class="uno-card-value text-center">${cv}</span></div>
+                <div class="uno-card-corner bottom-right">${cc}</div></div>`;
+        };
 
-            window.returnToLobby = async () => {
-                if (localGameState.hostId === currentUser.uid) await updateDoc(getRoomRef(currentRoomId), { status: 'lobby', winner: null, deck: [], discardPile: [], currentColor: '' });
-                document.getElementById('winner-modal').classList.add('hidden');
-            };
-        }
+        window.returnToLobby = async () => {
+            if (localGameState.hostId === currentUser.uid) {
+                await updateDoc(getRoomRef(currentRoomId), { 
+                    status: 'lobby', winner: null, deck: [], discardPile: [], currentColor: '',
+                    turnState: 'start', chainValue: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null
+                });
+            }
+            document.getElementById('winner-modal').classList.add('hidden');
+        };
+
     </script>
 </body>
 </html>
 
 
 ```
-
