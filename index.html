@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="google" content="notranslate">
     <title>UNO Multiplayer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -54,15 +55,15 @@
         .toast-enter { animation: slideIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans overflow-hidden">
+<body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans overflow-x-hidden notranslate">
 
     <!-- Global Notifications -->
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-50 hidden bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black transition-all duration-300 border-2 border-white text-center min-w-[250px]"></div>
 
     <!-- Screen 1: Login / Join -->
-    <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-red-900 via-gray-900 to-blue-900 p-4">
+    <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-red-900 via-gray-900 to-blue-900 p-4 min-h-screen">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-gray-700">
-            <h1 class="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 tracking-tighter" style="-webkit-text-stroke: 2px white;">UNO</h1>
+            <h1 class="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 tracking-tighter" style="-webkit-text-stroke: 2px white;" translate="no">UNO</h1>
             <p class="text-gray-400 mb-8 font-semibold uppercase tracking-widest text-sm">Ultimate Edition</p>
             
             <div id="auth-loading" class="text-blue-400 mb-4 animate-pulse">Connecting to server...</div>
@@ -93,7 +94,7 @@
     </div>
 
     <!-- Screen 2: Lobby -->
-    <div id="screen-lobby" class="hidden flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 overflow-y-auto">
+    <div id="screen-lobby" class="hidden flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 min-h-screen overflow-y-auto">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-700 my-auto">
             <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
                 <h2 class="text-3xl font-bold">Game Lobby</h2>
@@ -103,9 +104,7 @@
                 </div>
             </div>
 
-            <!-- Settings Area -->
             <div class="mb-6 flex flex-col gap-2">
-                <!-- Host Settings -->
                 <div id="host-settings" class="bg-gray-700 p-4 rounded-xl hidden">
                     <h4 class="font-bold mb-2 text-yellow-400 text-sm uppercase">Host Settings</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -128,7 +127,6 @@
                     </div>
                     <p class="text-[10px] text-gray-400 mt-2">*Top 3 and Endless modes require at least 4 players.</p>
                 </div>
-                <!-- Guest View -->
                 <div id="guest-settings-view" class="bg-gray-700 p-4 rounded-xl hidden">
                     <h4 class="font-bold mb-2 text-gray-400 text-xs uppercase">Room Settings</h4>
                     <div class="flex flex-wrap gap-4 text-sm font-semibold">
@@ -152,7 +150,7 @@
     </div>
 
     <!-- Screen 3: Game Board -->
-    <div id="screen-game" class="hidden flex-1 flex flex-col relative bg-green-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-800 to-gray-900 h-screen overflow-hidden">
+    <div id="screen-game" class="hidden flex-1 flex flex-col relative bg-green-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-800 to-gray-900 min-h-screen overflow-y-auto overflow-x-hidden">
         
         <div class="absolute top-0 left-0 w-full p-2 flex justify-between items-start z-10 pointer-events-none">
             <div class="glass-panel px-4 py-2 rounded-lg pointer-events-auto shadow-lg">
@@ -164,7 +162,6 @@
                 <div id="direction-indicator" class="glass-panel w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-xl md:text-2xl shadow-lg transition-transform duration-500">
                     <i class="fas fa-sync-alt text-white"></i>
                 </div>
-                <!-- ACTIVE COLOR INDICATOR -->
                 <div class="glass-panel px-3 py-1 rounded-full shadow-lg flex items-center gap-2 pointer-events-auto bg-black bg-opacity-40">
                     <div id="color-dot" class="w-3 h-3 rounded-full border border-white bg-transparent"></div>
                     <span id="color-name" class="text-xs font-bold uppercase tracking-wider text-white drop-shadow">None</span>
@@ -176,18 +173,16 @@
             </button>
         </div>
 
-        <!-- Responsive Opponents Container -->
         <div id="opponents-container" class="w-full max-w-5xl mx-auto flex justify-center items-start pt-16 sm:pt-20 px-2 sm:px-4 flex-wrap gap-2 sm:gap-4 z-0 max-h-[30vh] overflow-y-auto"></div>
 
-        <!-- Center Play Area -->
-        <div class="flex-1 flex flex-col items-center justify-center relative z-0 min-h-[160px] md:min-h-[250px]">
+        <div class="flex-1 flex flex-col items-center justify-center relative z-0 min-h-[160px] md:min-h-[250px] py-4">
             <div id="current-color-glow" class="absolute w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors duration-500"></div>
 
             <div class="flex gap-4 md:gap-8 items-center z-10 transform scale-75 md:scale-100">
                 <div class="flex flex-col items-center">
                     <div id="draw-pile" class="uno-card bg-gray-800 border-gray-600 cursor-pointer hover:scale-105" onclick="drawCard()">
                         <div class="uno-card-inner bg-red-600 border-red-500 flex items-center justify-center">
-                            <span class="text-white font-black italic text-xl transform -skew-y-15">UNO</span>
+                            <span class="text-white font-black italic text-xl transform -skew-y-15" translate="no">UNO</span>
                         </div>
                     </div>
                     <span class="mt-2 text-sm font-bold bg-black bg-opacity-50 px-3 py-1 rounded-full"><i class="fas fa-layer-group"></i> <span id="deck-count">108</span></span>
@@ -202,43 +197,36 @@
             <div id="turn-banner" class="mt-4 md:mt-8 text-xl md:text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg text-center h-8 transition-all">Waiting...</div>
         </div>
 
-        <!-- Bottom Hand Area -->
-        <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-3 md:p-4 pb-6 md:pb-8 flex flex-col relative z-20">
+        <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-3 md:p-4 pb-6 md:pb-8 flex flex-col relative z-20 mt-auto">
             <div class="flex justify-between items-end mb-2 px-2 md:px-4">
                 <div class="text-lg md:text-xl font-bold" id="my-name-display">You</div>
-                
-                <!-- Dynamic Action Buttons Container -->
-                <div class="flex gap-2 sm:gap-4 items-center" id="action-buttons">
-                    <!-- Buttons generated dynamically in JS -->
-                </div>
+                <div class="flex gap-2 sm:gap-4 items-center" id="action-buttons"></div>
             </div>
             <div id="my-hand" class="hand-container px-4 sm:px-8 min-h-[120px] md:min-h-[140px] flex items-center justify-center sm:justify-start"></div>
         </div>
     </div>
 
-    <!-- Modals & Chat -->
-    
-    <!-- Chat Widget -->
+    <!-- Chat Widget (Now completely separated from game loop to stop lag) -->
     <button id="chat-toggle-btn" onclick="document.getElementById('chat-panel').classList.toggle('hidden')" class="fixed bottom-4 right-4 bg-blue-600 text-white w-14 h-14 rounded-full shadow-2xl z-40 hover:bg-blue-500 hidden items-center justify-center transition hover:scale-110">
         <i class="fas fa-comments text-2xl"></i>
     </button>
 
-    <div id="chat-panel" class="hidden fixed bottom-20 right-4 w-[320px] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden h-[400px] max-h-[60vh]">
-        <div class="bg-gray-700 p-3 font-bold text-sm flex justify-between border-b border-gray-600">
+    <div id="chat-panel" class="hidden fixed bottom-20 right-4 w-[320px] max-w-[90vw] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden h-[400px] max-h-[60vh]">
+        <div class="bg-gray-700 p-3 font-bold text-sm flex justify-between border-b border-gray-600 shrink-0">
             <span>Room Chat</span>
             <button onclick="document.getElementById('chat-panel').classList.add('hidden')" class="hover:text-red-400"><i class="fas fa-times"></i></button>
         </div>
         <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm flex flex-col">
             <!-- Msgs -->
         </div>
-        <div class="p-2 bg-gray-900 border-t border-gray-700 flex gap-2">
-            <input type="text" id="chat-input" class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 text-white focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Type..." onkeypress="if(event.key==='Enter') sendChat()">
-            <button onclick="sendChat()" class="bg-blue-600 px-3 rounded hover:bg-blue-500 transition"><i class="fas fa-paper-plane"></i></button>
-            <button id="mic-btn" onclick="toggleMic()" class="bg-green-600 px-3 rounded hover:bg-green-500 transition relative" title="Hold to record (Max 5s)"><i class="fas fa-microphone"></i></button>
+        <div class="p-2 bg-gray-900 border-t border-gray-700 flex gap-2 shrink-0 items-center">
+            <input type="text" id="chat-input" class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-2 text-white focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[50px]" placeholder="Type..." onkeypress="if(event.key==='Enter') sendChat()">
+            <button onclick="sendChat()" class="bg-blue-600 px-3 py-2 rounded hover:bg-blue-500 transition shrink-0"><i class="fas fa-paper-plane"></i></button>
+            <button id="mic-btn" onclick="toggleMic()" class="bg-green-600 px-3 py-2 rounded hover:bg-green-500 transition relative shrink-0" title="Hold to record (Max 5s)"><i class="fas fa-microphone"></i></button>
         </div>
     </div>
 
-    <!-- Color Picker Modal -->
+    <!-- Modals -->
     <div id="color-picker-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border border-gray-600">
             <h3 class="text-2xl font-black mb-6 text-white uppercase">Choose Color</h3>
@@ -252,7 +240,6 @@
         </div>
     </div>
 
-    <!-- Winner Spectator Modal -->
     <div id="rank-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center backdrop-blur-md">
         <div class="text-center">
             <h1 class="text-5xl md:text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">CONGRATULATIONS!</h1>
@@ -261,7 +248,6 @@
         </div>
     </div>
 
-    <!-- Final Overall Winner Modal -->
     <div id="winner-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center backdrop-blur-md">
         <div class="text-center px-4">
             <h1 class="text-5xl md:text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">GAME OVER</h1>
@@ -296,6 +282,7 @@
         let currentUser = null;
         let currentRoomId = null;
         let unsubscribeGame = null;
+        let unsubscribeChat = null; // Decoupled Chat
         let localGameState = null;
         let pendingWildCardId = null;
         let localLastActionTs = 0;
@@ -332,6 +319,8 @@
         };
 
         const getRoomRef = (roomId) => doc(db, 'uno_rooms', roomId);
+        const getChatRef = (roomId) => doc(db, 'uno_chats', roomId); // Separate Database Document for Lightning Fast Games!
+        
         const switchScreen = (id) => { ['screen-login', 'screen-lobby', 'screen-game'].forEach(s => document.getElementById(s).classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); };
 
         const generateDeck = () => {
@@ -368,7 +357,7 @@
                 if (card.value === topCard.value && topCard.color !== 'black') return true;
                 return false;
             } else if (state.turnState === 'chained') {
-                return card.value === state.chainValue;
+                return card.value === state.chainValue; // Number chaining restored!
             } else if (state.turnState === 'drew') {
                 const topCard = state.discardPile[state.discardPile.length - 1];
                 const activeColor = state.currentColor || topCard.color;
@@ -421,7 +410,6 @@
                     state.pendingDraws = 0;
                     state.penaltyType = null;
                     state.chainValue = null; 
-                    
                     nextIndex = stepNext(nextIndex);
                 }
             }
@@ -449,13 +437,17 @@
             if (!name) return showToast('Enter your name', true);
             const roomId = Math.random().toString(36).substring(2,6).toUpperCase();
             
+            // Create game document
             await setDoc(getRoomRef(roomId), {
                 roomId, status: 'lobby', hostId: currentUser.uid, deck: [], discardPile: [], 
                 turnIndex: 0, direction: 1, currentColor: '', winner: null, winners: [],
                 settings: { mode: 'normal', initialCards: 7 },
-                turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0, lastAction: {msg:'', ts:0}, chatMessages: [],
+                turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0, lastAction: {msg:'', ts:0},
                 players: [{ id: currentUser.uid, name, hand: [], unoCalled: false }]
             });
+            
+            // Create separated chat document
+            await setDoc(getChatRef(roomId), { messages: [] });
             
             localStorage.setItem('uno_name', name); localStorage.setItem('uno_room', roomId);
             currentRoomId = roomId; listenToRoom(roomId);
@@ -492,6 +484,7 @@
                 }
             } catch(e){}
             if(unsubscribeGame) unsubscribeGame();
+            if(unsubscribeChat) unsubscribeChat();
             currentRoomId = null; localGameState = null; switchScreen('screen-login');
         };
 
@@ -512,7 +505,7 @@
             localHasSeenRank = false;
         };
 
-        // --- CHAT SYSTEM ---
+        // --- DECOUPLED CHAT SYSTEM ---
         const getSenderColor = (name, players) => {
             let idx = players.findIndex(p => p.name === name);
             return idx >= 0 ? CHAT_COLORS[idx % CHAT_COLORS.length] : 'text-gray-400';
@@ -521,13 +514,16 @@
         window.sendChat = async () => {
             let input = document.getElementById('chat-input');
             let text = input.value.trim();
-            if (!text || !localGameState) return;
+            if (!text || !localGameState || !currentRoomId) return;
             let me = localGameState.players.find(p => p.id === currentUser.uid);
-            let msgs = localGameState.chatMessages || [];
+            
+            let chatSnap = await getDoc(getChatRef(currentRoomId));
+            let msgs = chatSnap.exists() ? chatSnap.data().messages || [] : [];
             msgs.push({ sender: me.name, text, type: 'text', ts: Date.now() });
-            if (msgs.length > 30) msgs = msgs.slice(-30);
+            if (msgs.length > 20) msgs = msgs.slice(-20); // Strict limit so DB doesn't bloat
+            
             input.value = '';
-            await updateDoc(getRoomRef(currentRoomId), { chatMessages: msgs });
+            await updateDoc(getChatRef(currentRoomId), { messages: msgs });
         };
 
         let mediaRecorder; let audioChunks = []; let micTimeout;
@@ -540,7 +536,7 @@
             } else {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder = new MediaRecorder(stream, { audioBitsPerSecond: 16000 }); // Compressed
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = async () => {
                         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
@@ -551,10 +547,13 @@
                         reader.onloadend = async () => {
                             let base64data = reader.result;
                             let me = localGameState.players.find(p => p.id === currentUser.uid);
-                            let msgs = localGameState.chatMessages || [];
+                            
+                            let chatSnap = await getDoc(getChatRef(currentRoomId));
+                            let msgs = chatSnap.exists() ? chatSnap.data().messages || [] : [];
                             msgs.push({ sender: me.name, data: base64data, type: 'audio', ts: Date.now() });
-                            if (msgs.length > 30) msgs = msgs.slice(-30);
-                            await updateDoc(getRoomRef(currentRoomId), { chatMessages: msgs });
+                            if (msgs.length > 20) msgs = msgs.slice(-20);
+                            
+                            await updateDoc(getChatRef(currentRoomId), { messages: msgs });
                         };
                     };
                     audioChunks = [];
@@ -562,8 +561,26 @@
                     btn.classList.remove('bg-green-600'); btn.classList.add('bg-red-600', 'animate-pulse');
                     micTimeout = setTimeout(() => {
                         if (mediaRecorder && mediaRecorder.state === 'recording') window.toggleMic();
-                    }, 5000); 
+                    }, 5200); // Guarantees full 5 seconds capture
                 } catch(e) { showToast("Mic access denied"); }
+            }
+        };
+
+        const renderChat = (messages) => {
+            if(!localGameState) return;
+            const chatContainer = document.getElementById('chat-messages');
+            let chatHTML = '';
+            messages.forEach(m => {
+                let sColor = getSenderColor(m.sender, localGameState.players || []);
+                if (m.type === 'text') {
+                    chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600 break-words"><span class="font-bold ${sColor}">${m.sender}:</span> <span class="text-gray-100">${m.text}</span></div>`;
+                } else if (m.type === 'audio') {
+                    chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600 flex flex-col max-w-full overflow-hidden"><span class="font-bold ${sColor} mb-1">${m.sender}:</span> <audio src="${m.data}" controls style="width: 100%; min-width: 120px;" class="h-8 rounded outline-none"></audio></div>`;
+                }
+            });
+            if (chatContainer.innerHTML !== chatHTML) {
+                chatContainer.innerHTML = chatHTML;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
             }
         };
 
@@ -689,7 +706,7 @@
             state.currentColor = color;
 
             state.turnState = 'chained';
-            state.chainValue = card.value;
+            state.chainValue = card.value; // Numbers CAN chain perfectly again!
 
             if (card.type === 'draw2') { state.pendingDraws += 2; state.penaltyType = 'draw2'; }
             if (card.type === 'wild4') { state.pendingDraws += 4; state.penaltyType = 'wild4'; }
@@ -729,7 +746,8 @@
             if (isGameOver) {
                 state.status = 'finished';
                 state.winner = state.winners[0]?.id;
-                state.chatMessages = []; // Wipe Chat Data instantly on Game Over!
+                // Instantly wipe chat when game ends so lobby is fresh!
+                await updateDoc(getChatRef(currentRoomId), { messages: [] });
             } else {
                 if (me.hand.length === 0) {
                     state.turnIndex = getNextTurn(state, state.turnIndex);
@@ -737,7 +755,8 @@
                     state.chainValue = null;
                 } else {
                     let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
-                    if (!hasMoreMoves) {
+                    if (!hasMoreMoves || card.type === 'number') { 
+                        // Automatically pass if no more matching chain moves (or if it's a number card ending the chain)
                         state.turnIndex = getNextTurn(state, state.turnIndex);
                         state.turnState = 'start';
                         state.chainValue = null;
@@ -750,6 +769,8 @@
 
         const listenToRoom = (roomId) => {
             if(unsubscribeGame) unsubscribeGame();
+            if(unsubscribeChat) unsubscribeChat();
+
             unsubscribeGame = onSnapshot(getRoomRef(roomId), (snap) => {
                 if (!snap.exists()) { showToast("Room closed", true); leaveRoom(); return; }
                 localGameState = snap.data(); 
@@ -760,6 +781,13 @@
                 }
                 
                 renderGame(localGameState);
+            });
+
+            // Listen to separated chat doc
+            unsubscribeChat = onSnapshot(getChatRef(roomId), (snap) => {
+                if(snap.exists()) {
+                    renderChat(snap.data().messages || []);
+                }
             });
         };
 
@@ -796,8 +824,8 @@
 
                 document.getElementById('player-list').innerHTML = state.players.map(p => `
                     <div class="bg-gray-700 p-3 rounded-lg flex items-center gap-3 border ${p.id === state.hostId ? 'border-yellow-500' : 'border-gray-600'}">
-                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-sm uppercase">${p.name.charAt(0)}</div>
-                        <div class="flex-1 truncate font-semibold">${p.name}</div>
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-sm uppercase" translate="no">${p.name.charAt(0)}</div>
+                        <div class="flex-1 truncate font-semibold" translate="no">${p.name}</div>
                     </div>`).join('');
                 document.getElementById('btn-start-game').classList.toggle('hidden', !isHost);
                 document.getElementById('waiting-msg').classList.toggle('hidden', isHost);
@@ -808,22 +836,6 @@
                 const isMyTurn = state.status === 'playing' && state.players[state.turnIndex].id === currentUser.uid;
                 const me = state.players.find(p => p.id === currentUser.uid);
                 if(!me) return;
-
-                // Sync Chat with Auto-Scrolling and Unique Colors & Audio Fixes
-                const chatContainer = document.getElementById('chat-messages');
-                let chatHTML = '';
-                (state.chatMessages || []).forEach(m => {
-                    let sColor = getSenderColor(m.sender, state.players);
-                    if (m.type === 'text') {
-                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600 break-words"><span class="font-bold ${sColor}">${m.sender}:</span> <span class="text-gray-100">${m.text}</span></div>`;
-                    } else if (m.type === 'audio') {
-                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600 flex flex-col max-w-full overflow-hidden"><span class="font-bold ${sColor} mb-1">${m.sender}:</span> <audio src="${m.data}" controls style="width: 100%; min-width: 150px; max-width: 250px;" class="h-8 rounded outline-none"></audio></div>`;
-                    }
-                });
-                if (chatContainer.innerHTML !== chatHTML) {
-                    chatContainer.innerHTML = chatHTML;
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                }
 
                 document.getElementById('deck-count').innerText = state.deck.length;
                 document.getElementById('direction-indicator').style.transform = `rotate(${state.direction === 1 ? '0' : '180'}deg) scaleX(${state.direction === 1 ? '1' : '-1'})`;
@@ -848,18 +860,15 @@
                 let isOtherPlayerHolding2Cards = state.status === 'playing' && activePlayerNode.id !== currentUser.uid && activePlayerNode.hand.length === 2;
                 let catchGraceActive = state.catchTarget === currentUser.uid && (Date.now() - (state.catchTimestamp || 0) < 3000);
                 
-                // CHORD button Logic (Updated rules)
+                // CHORD Logic
                 if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
-                    // Active target exists and they threw the card without UNO! (Red, enabled)
                     actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CHORD!</button>`;
                 } else if (isOtherPlayerHolding2Cards) {
-                    // The active player has 2 cards and it's their turn (Grey, disabled)
                     actionContainer.innerHTML += `<button disabled class="bg-gray-600 text-gray-400 border border-gray-500 px-4 py-1 rounded shadow-sm text-sm font-bold opacity-50 cursor-not-allowed">CHORD</button>`;
                 }
 
-                // Subtle disabled UNO vs Yellow Grace Button
+                // UNO Logic
                 let hasValidMove = me.hand.some(c => canPlayCard(c, state));
-                
                 if (catchGraceActive) {
                     actionContainer.innerHTML += `<button onclick="callUno()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-2 rounded-lg font-black shadow-lg border-2 border-white">UNO!</button>`;
                     setTimeout(() => { if (localGameState === state) renderGame(localGameState); }, 3000 - (Date.now() - state.catchTimestamp));
@@ -897,8 +906,8 @@
                     
                     opps.innerHTML += `
                         <div class="glass-panel rounded-xl p-2 md:p-3 flex flex-col items-center min-w-[80px] md:min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'} ${isCatchable ? 'ring-4 ring-red-500 animate-pulse' : ''}">
-                            <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-1 md:mb-2 shadow-inner border border-gray-500">${p.name.charAt(0).toUpperCase()}</div>
-                            <div class="text-xs md:text-sm font-bold truncate w-16 md:w-20 text-center">${p.name}</div>
+                            <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-1 md:mb-2 shadow-inner border border-gray-500" translate="no">${p.name.charAt(0).toUpperCase()}</div>
+                            <div class="text-xs md:text-sm font-bold truncate w-16 md:w-20 text-center" translate="no">${p.name}</div>
                             <div class="mt-1 md:mt-2 bg-gray-800 rounded-full px-2 py-1 text-xs md:text-sm font-mono font-bold flex items-center gap-1 md:gap-2">
                                 <i class="fas fa-layer-group text-yellow-500"></i> ${p.hand.length}
                             </div>
@@ -916,7 +925,7 @@
                 }
 
                 if (state.status === 'finished') {
-                    let wText = (state.winners || []).map((w, i) => `${i+1}. ${w.name}`).join('<br>');
+                    let wText = (state.winners || []).map((w, i) => `${i+1}. <span translate="no">${w.name}</span>`).join('<br>');
                     if(!wText) wText = "Someone Won!";
                     document.getElementById('winner-name').innerHTML = wText;
                     document.getElementById('winner-modal').classList.remove('hidden');
@@ -929,9 +938,9 @@
             if(c.type=='skip') i='<i class="fas fa-ban"></i>'; else if(c.type=='reverse') i='<i class="fas fa-sync-alt"></i>'; else if(c.type=='draw2') i='+2'; else if(c.type=='wild') v='WILD'; else if(c.type=='wild4') v='+4';
             const cv = i||v, cc = i||(c.type.includes('wild')?'':v);
             return `<div class="uno-card card-${c.color} ${!p&&h?'disabled':''}" data-id="${c.id}">
-                <div class="uno-card-corner top-left">${cc}</div>
-                <div class="uno-card-inner border-opacity-50 border-white bg-opacity-20"><span class="uno-card-value text-center">${cv}</span></div>
-                <div class="uno-card-corner bottom-right">${cc}</div></div>`;
+                <div class="uno-card-corner top-left" translate="no">${cc}</div>
+                <div class="uno-card-inner border-opacity-50 border-white bg-opacity-20"><span class="uno-card-value text-center" translate="no">${cv}</span></div>
+                <div class="uno-card-corner bottom-right" translate="no">${cc}</div></div>`;
         };
 
         window.closeRankModal = () => document.getElementById('rank-modal').classList.add('hidden');
@@ -940,8 +949,9 @@
             if (localGameState.hostId === currentUser.uid) {
                 await updateDoc(getRoomRef(currentRoomId), { 
                     status: 'lobby', winner: null, winners: [], deck: [], discardPile: [], currentColor: '',
-                    turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0, chatMessages: []
+                    turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0
                 });
+                await updateDoc(getChatRef(currentRoomId), { messages: [] });
             }
             document.getElementById('winner-modal').classList.add('hidden');
         };
