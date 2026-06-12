@@ -112,7 +112,13 @@
 
             <div class="mb-6 flex flex-col gap-2">
                 <div id="host-settings" class="bg-gray-700 p-4 rounded-xl hidden">
-                    <h4 class="font-bold mb-2 text-yellow-400 text-sm uppercase">Host Settings</h4>
+                    <div class="flex justify-between items-center mb-4 border-b border-gray-600 pb-2">
+                        <h4 class="font-bold text-yellow-400 text-sm uppercase">Host Settings</h4>
+                        <!-- Host Terminate Room Button -->
+                        <button onclick="terminateRoom()" class="bg-red-600 hover:bg-red-500 text-white text-[10px] sm:text-xs font-bold py-1 px-2 rounded transition shadow flex items-center gap-1">
+                            <i class="fas fa-trash-alt"></i> Terminate Room
+                        </button>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="text-xs text-gray-300 block mb-1">Game Mode</label>
@@ -200,7 +206,10 @@
                 </div>
             </div>
 
-            <div id="turn-banner" class="mt-6 md:mt-8 text-xl md:text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg text-center h-8 transition-all">Waiting...</div>
+            <div id="turn-banner" class="mt-6 md:mt-8 flex flex-col items-center">
+                <div id="turn-text" class="text-xl md:text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg transition-all h-8">Waiting...</div>
+                <div id="turn-timer-display" class="hidden text-sm font-bold text-gray-200 bg-black bg-opacity-40 px-3 py-1 rounded-full mt-1 tracking-normal shadow"><i class="fas fa-clock"></i> 01:17</div>
+            </div>
         </div>
 
         <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-3 md:p-4 pb-6 md:pb-8 flex flex-col relative z-20 mt-auto min-h-[200px]">
@@ -208,7 +217,6 @@
                 <div class="text-lg md:text-xl font-bold" id="my-name-display" translate="no">You</div>
                 <div class="flex gap-2 sm:gap-4 items-center" id="action-buttons"></div>
             </div>
-            <!-- FIX 1: justify-start w-full ensures hand scrolling to the left is never clipped -->
             <div id="my-hand" class="hand-container px-4 sm:px-8 min-h-[140px] flex items-center justify-start w-full"></div>
         </div>
     </div>
@@ -297,8 +305,8 @@
         let localLastActionTs = 0;
         let localHasSeenRank = false;
         
-        let isInitialChatLoad = true; // FIX 2: Timestamp Tracking Fix
-        let localLastChatTs = 0; // Tracks precise timestamp of latest chat
+        let isInitialChatLoad = true; 
+        let localLastChatTs = 0; 
         
         let lastDiscardCount = -1;
         let lastDeckCount = -1;
@@ -493,6 +501,13 @@
             return nextIndex;
         };
 
+        // --- HOST ACTIONS & SETTINGS ---
+        window.terminateRoom = async () => {
+            if (!localGameState || localGameState.hostId !== currentUser.uid) return;
+            await deleteDoc(getRoomRef(currentRoomId));
+            await deleteDoc(getChatRef(currentRoomId));
+        };
+
         window.changeCards = async (delta) => {
             if (!localGameState || localGameState.hostId !== currentUser.uid) return;
             let current = parseInt(localGameState.settings?.initialCards || 7);
@@ -518,6 +533,7 @@
                 turnIndex: 0, direction: 1, currentColor: '', winner: null, winners: [],
                 settings: { mode: 'normal', initialCards: 7 },
                 turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0, lastAction: {msg:'', ts:0},
+                turnStartTime: Date.now(), missedTurns: {},
                 players: [{ id: currentUser.uid, name, hand: [], unoCalled: false }]
             });
             await setDoc(getChatRef(roomId), { messages: [] });
@@ -580,10 +596,119 @@
                 status: 'playing', players, deck, discardPile: [topCard], currentColor: topCard.color, 
                 turnIndex: randomStartTurn, direction: 1, winner: null, winners: [], catchTarget: null, catchTimestamp: 0,
                 turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0,
+                turnStartTime: Date.now(), missedTurns: {},
                 lastAction: { msg: 'Game Started!', ts: Date.now() }
             });
             localHasSeenRank = false;
         };
+
+        // --- TIMER & KICK LOGIC ---
+        const resetActivityTimer = (state) => {
+            if (!state.missedTurns) state.missedTurns = {};
+            state.missedTurns[currentUser.uid] = 0;
+            state.turnStartTime = Date.now();
+        };
+
+        window.kickAFKPlayer = async (uid) => {
+            if (localGameState.hostId !== currentUser.uid) return;
+            let state = JSON.parse(JSON.stringify(localGameState));
+            let activeIdx = state.players.findIndex(p => p.id === uid);
+            if (activeIdx === -1) return;
+            
+            let activePlayer = state.players[activeIdx];
+            
+            if (state.deck.length === 0 && state.discardPile.length > 1) {
+                state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+            }
+            state.deck.push(...activePlayer.hand);
+            state.deck.sort(() => Math.random() - 0.5);
+            state.players.splice(activeIdx, 1);
+            
+            state.lastAction = { msg: `🚨 ${activePlayer.name} was kicked by host!`, ts: Date.now() };
+            
+            state.pendingDraws = 0; state.penaltyType = null; state.chainValue = null;
+            state.turnState = 'start'; state.pendingSkips = 0;
+            
+            if (state.players.length > 0) state.turnIndex = state.turnIndex % state.players.length;
+
+            if (state.players.length <= 1) {
+                state.status = 'finished';
+                if(state.players.length === 1 && !state.winners?.find(w=>w.id===state.players[0].id)) {
+                    if(!state.winners) state.winners = [];
+                    state.winners.push({id: state.players[0].id, name: state.players[0].name});
+                }
+                state.winner = state.winners?.[0]?.id;
+                await updateDoc(getChatRef(currentRoomId), { messages: [] });
+            }
+            state.turnStartTime = Date.now();
+            await updateDoc(getRoomRef(currentRoomId), state);
+        };
+
+        window.autoSkipTurn = async () => {
+            let state = JSON.parse(JSON.stringify(localGameState));
+            let activeIdx = state.turnIndex;
+            let activePlayer = state.players[activeIdx];
+            
+            if (!state.missedTurns) state.missedTurns = {};
+            state.missedTurns[activePlayer.id] = (state.missedTurns[activePlayer.id] || 0) + 1;
+            
+            if (state.missedTurns[activePlayer.id] >= 2) {
+                if (state.deck.length === 0 && state.discardPile.length > 1) {
+                    state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                }
+                state.deck.push(...activePlayer.hand);
+                state.deck.sort(() => Math.random() - 0.5);
+                state.players.splice(activeIdx, 1);
+                
+                state.lastAction = { msg: `🚨 ${activePlayer.name} was removed due to inactivity!`, ts: Date.now() };
+                
+                state.pendingDraws = 0; state.penaltyType = null; state.chainValue = null;
+                state.turnState = 'start'; state.pendingSkips = 0;
+                
+                if (state.players.length > 0) state.turnIndex = state.turnIndex % state.players.length;
+
+                if (state.players.length <= 1) {
+                    state.status = 'finished';
+                    if(state.players.length === 1 && !state.winners?.find(w=>w.id===state.players[0].id)) {
+                        if(!state.winners) state.winners = [];
+                        state.winners.push({id: state.players[0].id, name: state.players[0].name});
+                    }
+                    state.winner = state.winners?.[0]?.id;
+                    await updateDoc(getChatRef(currentRoomId), { messages: [] });
+                }
+
+                if (activePlayer.id === state.hostId && state.players.length > 0) state.hostId = state.players[0].id;
+            } else {
+                state.turnIndex = getNextTurn(state, state.turnIndex);
+                state.turnState = 'start';
+                state.chainValue = null;
+                state.lastAction = { msg: `⏳ ${activePlayer.name} ran out of time! Turn skipped.`, ts: Date.now() };
+            }
+            
+            state.turnStartTime = Date.now();
+            await updateDoc(getRoomRef(currentRoomId), state);
+        };
+
+        // Game Loop Timer (1 second interval)
+        setInterval(() => {
+            if (!localGameState || localGameState.status !== 'playing') return;
+
+            let elapsed = Date.now() - (localGameState.turnStartTime || Date.now());
+            let remaining = Math.max(0, 77000 - elapsed);
+            let secs = Math.ceil(remaining / 1000);
+            let timerDisplay = `${Math.floor(secs/60)}:${(secs%60).toString().padStart(2, '0')}`;
+            
+            let timerEl = document.getElementById('turn-timer-display');
+            if (timerEl) timerEl.innerHTML = `<i class="fas fa-clock"></i> ${timerDisplay}`;
+
+            if (localGameState.hostId === currentUser?.uid && remaining === 0) {
+                if (!window.isProcessingTimeout) {
+                    window.isProcessingTimeout = true;
+                    autoSkipTurn().then(() => { setTimeout(() => { window.isProcessingTimeout = false; }, 1500); });
+                }
+            }
+        }, 1000);
+
 
         const getSenderColor = (name, players) => {
             let idx = players.findIndex(p => p.name === name);
@@ -664,7 +789,6 @@
             if(!localGameState) return;
             const chatContainer = document.getElementById('chat-messages');
             
-            // FIX 2: Check for strictly newer timestamps to guarantee ping fires every single time
             if (messages.length > 0) {
                 let latestTs = messages[messages.length - 1].ts;
                 if (isInitialChatLoad) {
@@ -697,6 +821,7 @@
             }
         };
 
+        // --- GAME ACTIONS ---
         window.callUno = async () => {
             let state = JSON.parse(JSON.stringify(localGameState));
             let me = state.players.find(p => p.id === currentUser.uid);
@@ -732,7 +857,8 @@
             state.turnIndex = getNextTurn(state, state.turnIndex);
             let me = state.players.find(p => p.id === currentUser.uid);
             me.unoCalled = false;
-
+            
+            resetActivityTimer(state);
             await updateDoc(getRoomRef(currentRoomId), state);
         };
 
@@ -757,6 +883,7 @@
             state.turnIndex = getNextTurn(state, state.turnIndex);
             p.unoCalled = false;
             
+            resetActivityTimer(state);
             await updateDoc(getRoomRef(currentRoomId), state);
         };
 
@@ -781,6 +908,7 @@
                 state.turnIndex = getNextTurn(state, state.turnIndex);
             }
 
+            resetActivityTimer(state);
             await updateDoc(getRoomRef(currentRoomId), state);
         };
 
@@ -855,12 +983,13 @@
                     state.turnIndex = getNextTurn(state, state.turnIndex);
                 } else {
                     let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
-                    if (!hasMoreMoves) {
+                    if (!hasMoreMoves || card.type === 'number') {
                         state.turnIndex = getNextTurn(state, state.turnIndex);
                     }
                 }
             }
 
+            resetActivityTimer(state);
             await updateDoc(getRoomRef(currentRoomId), state);
         };
 
@@ -937,6 +1066,12 @@
                 const me = state.players.find(p => p.id === currentUser.uid);
                 if(!me) return;
 
+                if (state.status === 'playing') {
+                    document.getElementById('turn-timer-display').classList.remove('hidden');
+                } else {
+                    document.getElementById('turn-timer-display').classList.add('hidden');
+                }
+
                 // --- AUDIO PLAYBACK TRIGGERS ---
                 if (state.discardPile.length !== lastDiscardCount || state.deck.length !== lastDeckCount) {
                     if (lastDiscardCount !== -1 && lastDeckCount !== -1 && currentUser) playSound('card');
@@ -956,10 +1091,10 @@
                 document.getElementById('color-dot').style.backgroundColor = state.currentColor ? colorHexes[state.currentColor] : 'transparent';
                 document.getElementById('color-name').innerText = state.currentColor ? colorNames[state.currentColor] : 'None';
 
-                const banner = document.getElementById('turn-banner');
-                if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-4 md:mt-8 text-2xl md:text-4xl font-black uppercase tracking-widest text-yellow-400 drop-shadow-lg"; }
-                else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-4 md:mt-8 text-2xl md:text-3xl font-black uppercase tracking-widest text-green-400 drop-shadow-lg animate-bounce"; }
-                else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-4 md:mt-8 text-lg md:text-xl font-black uppercase tracking-widest text-white drop-shadow-lg"; }
+                const bannerText = document.getElementById('turn-text');
+                if (state.status === 'finished') { bannerText.innerText = "Game Over!"; bannerText.className = "text-2xl md:text-4xl font-black uppercase tracking-widest text-yellow-400 drop-shadow-lg"; }
+                else if (isMyTurn) { bannerText.innerText = "Your Turn!"; bannerText.className = "text-2xl md:text-3xl font-black uppercase tracking-widest text-green-400 drop-shadow-lg animate-bounce"; }
+                else { bannerText.innerText = `${state.players[state.turnIndex].name}'s Turn`; bannerText.className = "text-lg md:text-xl font-black uppercase tracking-widest text-white drop-shadow-lg"; }
 
                 if (state.discardPile.length > 0) document.getElementById('discard-pile').innerHTML = createCardHTML(state.discardPile[state.discardPile.length - 1], false);
 
@@ -970,6 +1105,13 @@
                 let isOtherPlayerHolding2Cards = state.status === 'playing' && activePlayerNode.id !== currentUser.uid && activePlayerNode.hand.length === 2;
                 let catchGraceActive = state.catchTarget === currentUser.uid && (Date.now() - (state.catchTimestamp || 0) < 3000);
                 
+                const isHost = state.hostId === currentUser.uid;
+                let hasMissedOne = state.missedTurns?.[activePlayerNode.id] >= 1;
+                
+                if (isHost && !isMyTurn && hasMissedOne && state.status === 'playing') {
+                    actionContainer.innerHTML += `<button onclick="kickAFKPlayer('${activePlayerNode.id}')" class="bg-red-800 hover:bg-red-700 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-500 text-sm md:text-base"><i class="fas fa-user-slash"></i> Kick AFK</button>`;
+                }
+
                 if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
                     actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CHORD!</button>`;
                 } else if (isOtherPlayerHolding2Cards) {
@@ -987,13 +1129,13 @@
                 if (isMyTurn && me.hand.length > 0) {
                     if (state.turnState === 'start') {
                         if (state.pendingDraws > 0) {
-                            actionContainer.innerHTML += `<button onclick="takePenalty()" class="bg-red-600 hover:bg-red-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400 text-sm md:text-base"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws} Cards</button>`;
+                            actionContainer.innerHTML += `<button onclick="takePenalty()" class="bg-red-600 hover:bg-red-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400 text-sm md:text-base"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws}</button>`;
                         } else {
                             actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white border border-blue-400 text-sm md:text-base"><i class="fas fa-plus"></i> Draw</button>`;
                         }
                     }
                     if (state.turnState === 'chained' || state.turnState === 'drew') {
-                        actionContainer.innerHTML += `<button onclick="passTurn()" class="bg-gray-600 hover:bg-gray-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-gray-400 text-sm md:text-base"><i class="fas fa-forward"></i> Pass Turn</button>`;
+                        actionContainer.innerHTML += `<button onclick="passTurn()" class="bg-gray-600 hover:bg-gray-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-gray-400 text-sm md:text-base"><i class="fas fa-forward"></i> Pass</button>`;
                     }
                 }
 
@@ -1011,15 +1153,17 @@
                     if (p.hand.length === 0) return; 
                     const isActive = idx === state.turnIndex && state.status === 'playing';
                     const isCatchable = p.id === state.catchTarget;
+                    const isAFKWarning = state.missedTurns?.[p.id] >= 1;
                     
                     opps.innerHTML += `
-                        <div class="glass-panel rounded-xl p-2 md:p-3 flex flex-col items-center min-w-[80px] md:min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'} ${isCatchable ? 'ring-4 ring-red-500 animate-pulse' : ''}">
+                        <div class="glass-panel rounded-xl p-2 md:p-3 flex flex-col items-center min-w-[80px] md:min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'} ${isCatchable ? 'ring-4 ring-red-500 animate-pulse' : ''} ${isAFKWarning ? 'ring-2 ring-yellow-500' : ''}">
                             <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-1 md:mb-2 shadow-inner border border-gray-500" translate="no">${p.name.charAt(0).toUpperCase()}</div>
                             <div class="text-xs md:text-sm font-bold truncate w-16 md:w-20 text-center" translate="no">${p.name}</div>
                             <div class="mt-1 md:mt-2 bg-gray-800 rounded-full px-2 py-1 text-xs md:text-sm font-mono font-bold flex items-center gap-1 md:gap-2">
                                 <i class="fas fa-layer-group text-yellow-500"></i> ${p.hand.length}
                             </div>
                             ${p.unoCalled ? '<div class="text-[8px] md:text-[10px] text-yellow-400 font-black uppercase mt-1 text-center w-full">UNO Called</div>' : ''}
+                            ${isAFKWarning ? '<div class="text-[8px] md:text-[10px] text-red-400 font-black uppercase mt-1 text-center w-full animate-pulse"><i class="fas fa-clock"></i> AFK</div>' : ''}
                         </div>`;
                 });
 
@@ -1033,7 +1177,6 @@
                 }
 
                 if (state.status === 'finished') {
-                    let isHost = state.hostId === currentUser.uid;
                     document.getElementById('btn-return-lobby').innerText = isHost ? "Return to Lobby" : "Waiting for Host...";
                     
                     let wText = (state.winners || []).map((w, i) => `${i+1}. <span translate="no">${w.name}</span>`).join('<br>');
@@ -1063,10 +1206,10 @@
             }
             await updateDoc(getRoomRef(currentRoomId), { 
                 status: 'lobby', winner: null, winners: [], deck: [], discardPile: [], currentColor: '',
-                turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0
+                turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0,
+                turnStartTime: Date.now(), missedTurns: {}
             });
             await updateDoc(getChatRef(currentRoomId), { messages: [] });
-            document.getElementById('winner-modal').classList.add('hidden');
         };
 
     </script>
