@@ -256,11 +256,15 @@
         </div>
     </div>
 
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ==========================================
+        // FIREBASE CONFIGURATION
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCx1BYDb6ocTHyGemprGJ4k2B0WkCdUsko",
             authDomain: "uno-game-2744c.firebaseapp.com",
@@ -416,6 +420,7 @@
                     nextIndex = stepNext(nextIndex);
                 }
             }
+            // ABSOLUTE FAILSAFE: Always wipe chain status when turn completely shifts
             state.turnState = 'start';
             state.chainValue = null;
             return nextIndex;
@@ -479,7 +484,6 @@
             const newPlayers = localGameState.players.filter(p => p.id !== currentUser.uid);
             try {
                 if (newPlayers.length === 0 || (localGameState.status === 'playing' && newPlayers.length === 1)) {
-                    // Everyone left, or only 1 person left in the middle of a game -> Nuke the room completely
                     await deleteDoc(getRoomRef(currentRoomId));
                     await deleteDoc(getChatRef(currentRoomId));
                 } else {
@@ -504,7 +508,6 @@
             players.forEach(p => { p.hand = deck.splice(0, initCards); p.unoCalled = false; });
             let topCard = deck.splice(deck.findIndex(c => c.color !== 'black'), 1)[0];
             
-            // Random first turn
             let randomStartTurn = Math.floor(Math.random() * players.length);
             
             await updateDoc(getRoomRef(currentRoomId), {
@@ -719,72 +722,57 @@
             state.discardPile.push(card); 
             state.currentColor = color;
 
-            if (card.type === 'number') {
-                if (me.hand.length === 1 && !me.unoCalled) {
-                    state.catchTarget = currentUser.uid;
-                    state.catchTimestamp = Date.now();
-                }
-                if (me.hand.length === 0) { 
-                    if (!state.winners) state.winners = [];
-                    state.winners.push({ id: me.id, name: me.name });
-                    state.catchTarget = null;
-                }
-                
-                let activePlayers = state.players.filter(p => p.hand.length > 0);
-                let mode = state.settings?.mode || 'normal';
-                let isGameOver = (mode === 'normal' && state.winners?.length >= 1) || (mode === 'top3' && state.winners?.length >= 3) || (activePlayers.length <= 1);
-                
-                if (isGameOver) {
-                    state.status = 'finished'; state.winner = state.winners[0]?.id;
-                } else {
-                    state.turnIndex = getNextTurn(state, state.turnIndex);
-                }
+            state.turnState = 'chained';
+            state.chainValue = card.value;
+
+            if (card.type === 'draw2') { state.pendingDraws += 2; state.penaltyType = 'draw2'; }
+            if (card.type === 'wild4') { state.pendingDraws += 4; state.penaltyType = 'wild4'; }
+            
+            if (card.type === 'skip') state.pendingSkips += 1;
+            if (card.type === 'reverse') {
+                let activeLen = state.players.filter(p => p.hand.length > 0).length;
+                if (activeLen === 2) state.pendingSkips += 1;
+                else state.direction *= -1;
+            }
+
+            if (me.hand.length === 1 && !me.unoCalled) {
+                state.catchTarget = currentUser.uid;
+                state.catchTimestamp = Date.now();
+            }
+            if (me.hand.length > 1) {
+                me.unoCalled = false;
+                if (state.catchTarget === currentUser.uid) state.catchTarget = null;
+            }
+
+            if (me.hand.length === 0) { 
+                if (!state.winners) state.winners = [];
+                state.winners.push({ id: me.id, name: me.name });
+                state.catchTarget = null;
+            }
+
+            let activePlayers = state.players.filter(p => p.hand.length > 0);
+            let mode = state.settings?.mode || 'normal';
+            let isGameOver = false;
+
+            if (mode === 'normal' && state.winners?.length >= 1) isGameOver = true;
+            if (mode === 'top3' && state.winners?.length >= 3) isGameOver = true;
+            if (activePlayers.length <= 1) isGameOver = true;
+
+            if (isGameOver) {
+                state.status = 'finished';
+                state.winner = state.winners[0]?.id;
+                await updateDoc(getChatRef(currentRoomId), { messages: [] });
             } else {
-                state.turnState = 'chained';
-                state.chainValue = card.value;
-
-                if (card.type === 'draw2') { state.pendingDraws += 2; state.penaltyType = 'draw2'; }
-                if (card.type === 'wild4') { state.pendingDraws += 4; state.penaltyType = 'wild4'; }
-                
-                if (card.type === 'skip') state.pendingSkips += 1;
-                if (card.type === 'reverse') {
-                    let activeLen = state.players.filter(p => p.hand.length > 0).length;
-                    if (activeLen === 2) state.pendingSkips += 1;
-                    else state.direction *= -1;
-                }
-
-                if (me.hand.length === 1 && !me.unoCalled) {
-                    state.catchTarget = currentUser.uid;
-                    state.catchTimestamp = Date.now();
-                }
-                if (me.hand.length > 1) {
-                    me.unoCalled = false;
-                    if (state.catchTarget === currentUser.uid) state.catchTarget = null;
-                }
-
-                if (me.hand.length === 0) { 
-                    if (!state.winners) state.winners = [];
-                    state.winners.push({ id: me.id, name: me.name });
-                    state.catchTarget = null;
-                }
-
-                let activePlayers = state.players.filter(p => p.hand.length > 0);
-                let mode = state.settings?.mode || 'normal';
-                let isGameOver = (mode === 'normal' && state.winners?.length >= 1) || (mode === 'top3' && state.winners?.length >= 3) || (activePlayers.length <= 1);
-
-                if (isGameOver) {
-                    state.status = 'finished'; state.winner = state.winners[0]?.id;
+                if (me.hand.length === 0) {
+                    state.turnIndex = getNextTurn(state, state.turnIndex);
                 } else {
-                    if (me.hand.length === 0) {
+                    let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
+                    if (!hasMoreMoves) {
                         state.turnIndex = getNextTurn(state, state.turnIndex);
-                    } else {
-                        let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
-                        if (!hasMoreMoves) {
-                            state.turnIndex = getNextTurn(state, state.turnIndex);
-                        }
                     }
                 }
             }
+
             await updateDoc(getRoomRef(currentRoomId), state);
         };
 
@@ -810,10 +798,12 @@
 
         const renderGame = (state) => {
             if (state.status === 'lobby') {
-                switchScreen('screen-lobby');
+                // BUG FIX: Hide modals for everyone (even guests) when host returns to lobby!
                 document.getElementById('winner-modal').classList.add('hidden');
                 document.getElementById('rank-modal').classList.add('hidden');
-                
+                document.getElementById('color-picker-modal').classList.add('hidden');
+
+                switchScreen('screen-lobby');
                 document.getElementById('lobby-room-code').innerText = state.roomId;
                 document.getElementById('player-count').innerText = state.players.length;
                 
@@ -933,8 +923,7 @@
                         </div>`;
                 });
 
-                let mode = state.settings?.mode || 'normal';
-                if (me.hand.length === 0 && !localHasSeenRank && mode !== 'normal') {
+                if (me.hand.length === 0 && !localHasSeenRank) {
                     let myRank = (state.winners || []).findIndex(w => w.id === currentUser.uid) + 1;
                     if (myRank > 0) {
                         document.getElementById('rank-text').innerText = `You finished Rank #${myRank}!`;
