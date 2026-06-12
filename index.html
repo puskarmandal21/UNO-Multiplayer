@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Custom Uno Styles */
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overscroll-behavior-y: contain; }
         
         .uno-card {
@@ -16,12 +15,10 @@
             justify-content: center; align-items: center; user-select: none;
             transition: transform 0.2s, box-shadow 0.2s; background-color: #222;
         }
-        
         .uno-card:hover:not(:disabled) {
             transform: translateY(-15px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.4);
             z-index: 50; cursor: pointer;
         }
-
         .uno-card.disabled { filter: brightness(0.5); cursor: not-allowed; transform: none !important; }
 
         .uno-card-inner {
@@ -29,13 +26,11 @@
             border: 2px solid white; display: flex; justify-content: center;
             align-items: center; transform: skewY(-15deg);
         }
-
         .uno-card-value {
             font-size: 2.5rem; font-weight: 900; color: white;
             text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
             transform: skewY(15deg);
         }
-
         .uno-card-corner {
             position: absolute; font-size: 1rem; font-weight: bold; color: white;
             text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
@@ -61,14 +56,14 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans overflow-hidden">
 
-    <!-- Notification Toast -->
+    <!-- Global Notifications -->
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-50 hidden bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black transition-all duration-300 border-2 border-white text-center min-w-[250px]"></div>
 
     <!-- Screen 1: Login / Join -->
     <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-red-900 via-gray-900 to-blue-900 p-4">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-gray-700">
             <h1 class="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 tracking-tighter" style="-webkit-text-stroke: 2px white;">UNO</h1>
-            <p class="text-gray-400 mb-8 font-semibold uppercase tracking-widest text-sm">Multiplayer Web Edition</p>
+            <p class="text-gray-400 mb-8 font-semibold uppercase tracking-widest text-sm">Ultimate Edition</p>
             
             <div id="auth-loading" class="text-blue-400 mb-4 animate-pulse">Connecting to server...</div>
 
@@ -105,6 +100,37 @@
                 <div class="bg-gray-700 px-4 py-2 rounded-lg text-center">
                     <div class="text-xs text-gray-400 uppercase tracking-wide">Room Code</div>
                     <div id="lobby-room-code" class="text-2xl font-mono font-bold text-yellow-400 tracking-widest">WXYZ</div>
+                </div>
+            </div>
+
+            <!-- Settings Area -->
+            <div class="mb-6 flex flex-col gap-2">
+                <!-- Host Settings -->
+                <div id="host-settings" class="bg-gray-700 p-4 rounded-xl hidden">
+                    <h4 class="font-bold mb-2 text-yellow-400 text-sm uppercase">Host Settings</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-gray-300 block mb-1">Game Mode</label>
+                            <select id="setting-mode" class="w-full bg-gray-800 rounded p-2 text-sm text-white border border-gray-600 focus:outline-none" onchange="updateSettings()">
+                                <option value="normal">Normal (1 Winner)</option>
+                                <option value="top3" id="opt-top3">Top 3 Mode</option>
+                                <option value="endless" id="opt-endless">Endless Mode</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-300 block mb-1">Initial Cards</label>
+                            <input type="number" id="setting-cards" min="5" max="11" value="7" class="w-full bg-gray-800 rounded p-2 text-sm text-white border border-gray-600 focus:outline-none" onchange="updateSettings()">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 mt-2">*Top 3 and Endless modes require at least 4 players.</p>
+                </div>
+                <!-- Guest View -->
+                <div id="guest-settings-view" class="bg-gray-700 p-4 rounded-xl hidden">
+                    <h4 class="font-bold mb-2 text-gray-400 text-xs uppercase">Room Settings</h4>
+                    <div class="flex gap-4 text-sm font-semibold">
+                        <div class="bg-gray-800 px-3 py-1 rounded border border-gray-600">Mode: <span id="guest-mode-display" class="text-yellow-400 uppercase">Normal</span></div>
+                        <div class="bg-gray-800 px-3 py-1 rounded border border-gray-600">Cards: <span id="guest-cards-display" class="text-blue-400">7</span></div>
+                    </div>
                 </div>
             </div>
 
@@ -183,7 +209,29 @@
         </div>
     </div>
 
-    <!-- Modals -->
+    <!-- Modals & Chat -->
+    
+    <!-- Chat Widget -->
+    <button id="chat-toggle-btn" onclick="document.getElementById('chat-panel').classList.toggle('hidden')" class="fixed bottom-4 right-4 bg-blue-600 text-white w-14 h-14 rounded-full shadow-2xl z-40 hover:bg-blue-500 hidden items-center justify-center transition hover:scale-110">
+        <i class="fas fa-comments text-2xl"></i>
+    </button>
+
+    <div id="chat-panel" class="hidden fixed bottom-20 right-4 w-80 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden h-[400px]">
+        <div class="bg-gray-700 p-3 font-bold text-sm flex justify-between border-b border-gray-600">
+            <span>Room Chat</span>
+            <button onclick="document.getElementById('chat-panel').classList.add('hidden')" class="hover:text-red-400"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm flex flex-col">
+            <!-- Msgs -->
+        </div>
+        <div class="p-2 bg-gray-900 border-t border-gray-700 flex gap-2">
+            <input type="text" id="chat-input" class="flex-1 bg-gray-700 border border-gray-600 rounded px-3 text-white focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Type..." onkeypress="if(event.key==='Enter') sendChat()">
+            <button onclick="sendChat()" class="bg-blue-600 px-3 rounded hover:bg-blue-500 transition"><i class="fas fa-paper-plane"></i></button>
+            <button id="mic-btn" onclick="toggleMic()" class="bg-green-600 px-3 rounded hover:bg-green-500 transition relative" title="Hold to record (Max 5s)"><i class="fas fa-microphone"></i></button>
+        </div>
+    </div>
+
+    <!-- Color Picker Modal -->
     <div id="color-picker-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border border-gray-600">
             <h3 class="text-2xl font-black mb-6 text-white uppercase">Choose Color</h3>
@@ -197,11 +245,21 @@
         </div>
     </div>
 
+    <!-- Winner Spectator Modal -->
+    <div id="rank-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center backdrop-blur-md">
+        <div class="text-center">
+            <h1 class="text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">CONGRATULATIONS!</h1>
+            <h2 id="rank-text" class="text-3xl text-white font-bold mb-8">You finished Rank #1</h2>
+            <button onclick="closeRankModal()" class="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-full shadow-lg text-xl transition hover:scale-105">Spectate Game</button>
+        </div>
+    </div>
+
+    <!-- Final Overall Winner Modal -->
     <div id="winner-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center backdrop-blur-md">
         <div class="text-center">
             <h1 class="text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">GAME OVER</h1>
-            <h2 id="winner-name" class="text-4xl text-white font-bold mb-8">Someone Won!</h2>
-            <button onclick="returnToLobby()" class="bg-white text-black hover:bg-gray-200 font-bold py-4 px-8 rounded-full shadow-lg text-xl">Return to Lobby</button>
+            <h2 id="winner-name" class="text-3xl text-white font-bold mb-8 leading-relaxed">Someone Won!</h2>
+            <button onclick="returnToLobby()" class="bg-white text-black hover:bg-gray-200 font-bold py-4 px-8 rounded-full shadow-lg text-xl transition hover:scale-105">Return to Lobby</button>
         </div>
     </div>
 
@@ -211,9 +269,6 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================
-        // FIREBASE CONFIGURATION
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCx1BYDb6ocTHyGemprGJ4k2B0WkCdUsko",
             authDomain: "uno-game-2744c.firebaseapp.com",
@@ -234,11 +289,12 @@
         let localGameState = null;
         let pendingWildCardId = null;
         let localLastActionTs = 0;
+        let localHasSeenRank = false;
 
         const COLORS = ['red', 'blue', 'green', 'yellow'];
 
         signInAnonymously(auth).catch(err => {
-            document.getElementById('auth-loading').innerText = "Database connection failed. Check config and rules.";
+            document.getElementById('auth-loading').innerText = "Database connection failed. Check config.";
         });
 
         onAuthStateChanged(auth, (user) => {
@@ -246,6 +302,8 @@
                 currentUser = user;
                 document.getElementById('auth-loading').classList.add('hidden');
                 document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('chat-toggle-btn').classList.remove('hidden');
+                document.getElementById('chat-toggle-btn').classList.add('flex');
                 
                 const savedRoom = localStorage.getItem('uno_room');
                 const savedName = localStorage.getItem('uno_name');
@@ -257,7 +315,7 @@
         const showToast = (msg, isImportant = false) => {
             const t = document.getElementById('toast');
             t.innerText = msg;
-            t.className = `fixed top-10 left-1/2 transform -translate-x-1/2 z-50 bg-${isImportant?'red':'blue'}-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black toast-enter border-2 border-white text-center min-w-[250px]`;
+            t.className = `fixed top-10 left-1/2 transform -translate-x-1/2 z-[60] bg-${isImportant?'red':'blue'}-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black toast-enter border-2 border-white text-center min-w-[250px]`;
             t.classList.remove('hidden');
             setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast-enter'); }, 4000);
         };
@@ -288,7 +346,6 @@
         const canPlayCard = (card, state) => {
             if (state.turnState === 'start') {
                 if (state.pendingDraws > 0) {
-                    // Penalty stacking defense: +4 blocks +4, and +2 OR +4 blocks +2.
                     if (state.penaltyType === 'draw2') return card.type === 'draw2' || card.type === 'wild4';
                     if (state.penaltyType === 'wild4') return card.type === 'wild4';
                     return false;
@@ -300,10 +357,8 @@
                 if (card.value === topCard.value && topCard.color !== 'black') return true;
                 return false;
             } else if (state.turnState === 'chained') {
-                // Must exactly match the value of the active chain
                 return card.value === state.chainValue;
             } else if (state.turnState === 'drew') {
-                // Evaluated same as normal start
                 const topCard = state.discardPile[state.discardPile.length - 1];
                 const activeColor = state.currentColor || topCard.color;
                 if (card.color === 'black') return true;
@@ -316,11 +371,24 @@
 
         const getNextTurn = (state, startIndex) => {
             let len = state.players.length;
-            let nextIndex = (startIndex + (state.direction * (1 + state.pendingSkips))) % len;
-            if (nextIndex < 0) nextIndex += len;
+            let nextIndex = startIndex;
+            let skipsLeft = 1 + state.pendingSkips;
+
+            const stepNext = (curr) => {
+                let nxt = curr;
+                do {
+                    nxt = (nxt + state.direction) % len;
+                    if (nxt < 0) nxt += len;
+                } while (state.players[nxt].hand.length === 0); // Always completely bypass winners
+                return nxt;
+            };
+
+            while (skipsLeft > 0) {
+                nextIndex = stepNext(nextIndex);
+                skipsLeft--;
+            }
             state.pendingSkips = 0;
 
-            // Handle pending draws & defense auto-resolution
             while (state.pendingDraws > 0) {
                 let target = state.players[nextIndex];
                 let hasDefense = target.hand.some(c => {
@@ -330,27 +398,31 @@
                 });
 
                 if (hasDefense) {
-                    // Target has a defense card. Turn belongs to them now to allow stacking or manually taking penalty.
-                    break;
+                    break; // Has defense, their turn to block
                 } else {
-                    // Target CANNOT defend. Auto-draw all penalty cards and instantly lose turn!
                     for(let i=0; i<state.pendingDraws; i++) {
                         if (state.deck.length === 0 && state.discardPile.length > 1) {
                             state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
                         }
                         if (state.deck.length > 0) target.hand.push(state.deck.pop());
                     }
-                    state.lastAction = { msg: `💥 ${target.name} AUTO-DREW ${state.pendingDraws} CARDS!`, ts: Date.now() };
+                    state.lastAction = { msg: `💥 +${state.pendingDraws} penalty to ${target.name}!`, ts: Date.now() };
                     state.pendingDraws = 0;
                     state.penaltyType = null;
                     state.chainValue = null; 
                     
-                    // Turn automatically skips over this penalized player
-                    nextIndex = (nextIndex + state.direction) % len;
-                    if (nextIndex < 0) nextIndex += len;
+                    nextIndex = stepNext(nextIndex);
                 }
             }
             return nextIndex;
+        };
+
+        // --- HOST SETTINGS ---
+        window.updateSettings = async () => {
+            if (!localGameState || localGameState.hostId !== currentUser.uid) return;
+            let mode = document.getElementById('setting-mode').value;
+            let initialCards = document.getElementById('setting-cards').value;
+            await updateDoc(getRoomRef(currentRoomId), { settings: { mode, initialCards } });
         };
 
         window.createRoom = async () => {
@@ -360,8 +432,9 @@
             
             await setDoc(getRoomRef(roomId), {
                 roomId, status: 'lobby', hostId: currentUser.uid, deck: [], discardPile: [], 
-                turnIndex: 0, direction: 1, currentColor: '', winner: null,
-                turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0, lastAction: {msg:'', ts:0},
+                turnIndex: 0, direction: 1, currentColor: '', winner: null, winners: [],
+                settings: { mode: 'normal', initialCards: 7 },
+                turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0, lastAction: {msg:'', ts:0}, chatMessages: [],
                 players: [{ id: currentUser.uid, name, hand: [], unoCalled: false }]
             });
             
@@ -406,17 +479,71 @@
         window.startGame = async () => {
             if (localGameState.hostId !== currentUser.uid || localGameState.players.length < 2) return;
             let deck = generateDeck(), players = JSON.parse(JSON.stringify(localGameState.players));
-            players.forEach(p => { p.hand = deck.splice(0, 7); p.unoCalled = false; });
+            let initCards = parseInt(localGameState.settings?.initialCards || 7);
+            
+            players.forEach(p => { p.hand = deck.splice(0, initCards); p.unoCalled = false; });
             let topCard = deck.splice(deck.findIndex(c => c.color !== 'black'), 1)[0];
             
             await updateDoc(getRoomRef(currentRoomId), {
                 status: 'playing', players, deck, discardPile: [topCard], currentColor: topCard.color, 
-                turnIndex: 0, direction: 1, winner: null, catchTarget: null, catchTimestamp: 0,
+                turnIndex: 0, direction: 1, winner: null, winners: [], catchTarget: null, catchTimestamp: 0,
                 turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0,
-                lastAction: { msg: 'Game Started!', ts: Date.now() }
+                lastAction: { msg: 'Game Started!', ts: Date.now() }, chatMessages: []
             });
+            localHasSeenRank = false;
         };
 
+        // --- CHAT SYSTEM ---
+        window.sendChat = async () => {
+            let input = document.getElementById('chat-input');
+            let text = input.value.trim();
+            if (!text || !localGameState) return;
+            let me = localGameState.players.find(p => p.id === currentUser.uid);
+            let msgs = localGameState.chatMessages || [];
+            msgs.push({ sender: me.name, text, type: 'text', ts: Date.now() });
+            if (msgs.length > 30) msgs = msgs.slice(-30);
+            input.value = '';
+            await updateDoc(getRoomRef(currentRoomId), { chatMessages: msgs });
+        };
+
+        let mediaRecorder; let audioChunks = []; let micTimeout;
+        window.toggleMic = async () => {
+            let btn = document.getElementById('mic-btn');
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                clearTimeout(micTimeout);
+                btn.classList.remove('bg-red-600', 'animate-pulse'); btn.classList.add('bg-green-600');
+            } else {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        audioChunks = [];
+                        if (audioBlob.size > 800000) return showToast("Audio too long!"); 
+                        const reader = new FileReader();
+                        reader.readAsDataURL(audioBlob);
+                        reader.onloadend = async () => {
+                            let base64data = reader.result;
+                            let me = localGameState.players.find(p => p.id === currentUser.uid);
+                            let msgs = localGameState.chatMessages || [];
+                            msgs.push({ sender: me.name, data: base64data, type: 'audio', ts: Date.now() });
+                            if (msgs.length > 30) msgs = msgs.slice(-30);
+                            await updateDoc(getRoomRef(currentRoomId), { chatMessages: msgs });
+                        };
+                    };
+                    audioChunks = [];
+                    mediaRecorder.start();
+                    btn.classList.remove('bg-green-600'); btn.classList.add('bg-red-600', 'animate-pulse');
+                    micTimeout = setTimeout(() => {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') window.toggleMic();
+                    }, 5000); // 5 sec strict limit
+                } catch(e) { showToast("Mic access denied"); }
+            }
+        };
+
+        // --- GAME ACTIONS ---
         window.callUno = async () => {
             let state = JSON.parse(JSON.stringify(localGameState));
             let me = state.players.find(p => p.id === currentUser.uid);
@@ -439,7 +566,7 @@
             }
             if (state.deck.length > 0) target.hand.push(state.deck.pop());
             
-            state.lastAction = { msg: `🚨 ${catcher.name} CAUGHT ${target.name}! (+1 Card) 🚨`, ts: Date.now() };
+            state.lastAction = { msg: `🚨 ${catcher.name} CHORDED ${target.name}! (+1 Card) 🚨`, ts: Date.now() };
             state.catchTarget = null;
             
             await updateDoc(getRoomRef(currentRoomId), state);
@@ -452,8 +579,6 @@
             state.turnIndex = getNextTurn(state, state.turnIndex);
             state.turnState = 'start';
             state.chainValue = null;
-            // Note: state.penaltyType is kept intact here so next player inherits the pending draws!
-            
             let me = state.players.find(p => p.id === currentUser.uid);
             me.unoCalled = false;
 
@@ -473,7 +598,7 @@
                 if(state.deck.length > 0) p.hand.push(state.deck.pop());
             }
             
-            state.lastAction = { msg: `💥 ${p.name} chose to draw ${state.pendingDraws} penalty cards!`, ts: Date.now() };
+            state.lastAction = { msg: `💥 +${state.pendingDraws} penalty to ${p.name}!`, ts: Date.now() };
             state.pendingDraws = 0;
             state.penaltyType = null;
             state.chainValue = null;
@@ -501,11 +626,8 @@
             p.unoCalled = false;
             if (state.catchTarget === currentUser.uid) state.catchTarget = null;
 
-            // Evaluate if drawn card grants a valid throw
             let canPlay = p.hand.some(c => canPlayCard(c, state));
-            
             if (!canPlay) {
-                // Auto Pass if no valid moves exist!
                 state.turnIndex = getNextTurn(state, state.turnIndex);
                 state.turnState = 'start';
                 state.chainValue = null;
@@ -550,31 +672,53 @@
             
             if (card.type === 'skip') state.pendingSkips += 1;
             if (card.type === 'reverse') {
-                if (state.players.length === 2) state.pendingSkips += 1;
+                let activeLen = state.players.filter(p => p.hand.length > 0).length;
+                if (activeLen === 2) state.pendingSkips += 1;
                 else state.direction *= -1;
             }
 
-            // Catch Logic evaluation
+            // UNO Grace period logic
             if (me.hand.length === 1 && !me.unoCalled) {
                 state.catchTarget = currentUser.uid;
-                state.catchTimestamp = Date.now(); // Start the 3-second grace timer
+                state.catchTimestamp = Date.now();
             }
             if (me.hand.length > 1) {
                 me.unoCalled = false;
                 if (state.catchTarget === currentUser.uid) state.catchTarget = null;
             }
 
-            let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
-
+            // Handle Winners
             if (me.hand.length === 0) { 
-                state.status = 'finished'; 
-                state.winner = currentUser.uid; 
+                if (!state.winners) state.winners = [];
+                state.winners.push({ id: me.id, name: me.name });
                 state.catchTarget = null;
-            } else if (!hasMoreMoves) {
-                // Auto pass directly if no matching cards to continue chain!
-                state.turnIndex = getNextTurn(state, state.turnIndex);
-                state.turnState = 'start';
-                state.chainValue = null;
+            }
+
+            let activePlayers = state.players.filter(p => p.hand.length > 0);
+            let mode = state.settings?.mode || 'normal';
+            let isGameOver = false;
+
+            if (mode === 'normal' && state.winners?.length >= 1) isGameOver = true;
+            if (mode === 'top3' && state.winners?.length >= 3) isGameOver = true;
+            if (activePlayers.length <= 1) isGameOver = true;
+
+            if (isGameOver) {
+                state.status = 'finished';
+                state.winner = state.winners[0]?.id;
+            } else {
+                if (me.hand.length === 0) {
+                    // Won, but game continues (pass turn)
+                    state.turnIndex = getNextTurn(state, state.turnIndex);
+                    state.turnState = 'start';
+                    state.chainValue = null;
+                } else {
+                    let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
+                    if (!hasMoreMoves) {
+                        state.turnIndex = getNextTurn(state, state.turnIndex);
+                        state.turnState = 'start';
+                        state.chainValue = null;
+                    }
+                }
             }
 
             await updateDoc(getRoomRef(currentRoomId), state);
@@ -586,9 +730,8 @@
                 if (!snap.exists()) { showToast("Room closed", true); leaveRoom(); return; }
                 localGameState = snap.data(); 
                 
-                // Show global Toasts
                 if (localGameState.lastAction && localGameState.lastAction.ts > localLastActionTs) {
-                    showToast(localGameState.lastAction.msg, localGameState.lastAction.msg.includes('CATCH') || localGameState.lastAction.msg.includes('AUTO-DREW'));
+                    showToast(localGameState.lastAction.msg, localGameState.lastAction.msg.includes('CHORD') || localGameState.lastAction.msg.includes('penalty'));
                     localLastActionTs = localGameState.lastAction.ts;
                 }
                 
@@ -601,12 +744,32 @@
                 switchScreen('screen-lobby');
                 document.getElementById('lobby-room-code').innerText = state.roomId;
                 document.getElementById('player-count').innerText = state.players.length;
+                
+                const isHost = state.hostId === currentUser.uid;
+                document.getElementById('host-settings').classList.toggle('hidden', !isHost);
+                document.getElementById('guest-settings-view').classList.toggle('hidden', isHost);
+
+                if (isHost) {
+                    let pCount = state.players.length;
+                    let modeSelect = document.getElementById('setting-mode');
+                    document.getElementById('opt-top3').disabled = pCount <= 3;
+                    document.getElementById('opt-endless').disabled = pCount <= 3;
+                    if (pCount <= 3 && modeSelect.value !== 'normal') {
+                        modeSelect.value = 'normal'; updateSettings();
+                    } else {
+                        modeSelect.value = state.settings?.mode || 'normal';
+                    }
+                    document.getElementById('setting-cards').value = state.settings?.initialCards || 7;
+                } else {
+                    document.getElementById('guest-mode-display').innerText = state.settings?.mode || 'normal';
+                    document.getElementById('guest-cards-display').innerText = state.settings?.initialCards || 7;
+                }
+
                 document.getElementById('player-list').innerHTML = state.players.map(p => `
                     <div class="bg-gray-700 p-3 rounded-lg flex items-center gap-3 border ${p.id === state.hostId ? 'border-yellow-500' : 'border-gray-600'}">
                         <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold text-sm uppercase">${p.name.charAt(0)}</div>
                         <div class="flex-1 truncate font-semibold">${p.name}</div>
                     </div>`).join('');
-                const isHost = state.hostId === currentUser.uid;
                 document.getElementById('btn-start-game').classList.toggle('hidden', !isHost);
                 document.getElementById('waiting-msg').classList.toggle('hidden', isHost);
             } 
@@ -617,13 +780,26 @@
                 const me = state.players.find(p => p.id === currentUser.uid);
                 if(!me) return;
 
+                // Sync Chat
+                const chatContainer = document.getElementById('chat-messages');
+                let chatHTML = '';
+                (state.chatMessages || []).forEach(m => {
+                    if (m.type === 'text') {
+                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600"><span class="font-bold text-yellow-400">${m.sender}:</span> ${m.text}</div>`;
+                    } else if (m.type === 'audio') {
+                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600"><span class="font-bold text-yellow-400">${m.sender}:</span> <audio src="${m.data}" controls class="h-8 mt-1 w-full rounded"></audio></div>`;
+                    }
+                });
+                if (chatContainer.innerHTML !== chatHTML) {
+                    chatContainer.innerHTML = chatHTML;
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+
                 document.getElementById('deck-count').innerText = state.deck.length;
                 document.getElementById('direction-indicator').style.transform = `rotate(${state.direction === 1 ? '0' : '180'}deg) scaleX(${state.direction === 1 ? '1' : '-1'})`;
                 
-                // Active Color Updates
                 const colorHexes = { 'red': '#ef4444', 'blue': '#3b82f6', 'green': '#22c55e', 'yellow': '#eab308', '': 'transparent' };
                 const colorNames = { 'red': 'Red', 'blue': 'Blue', 'green': 'Green', 'yellow': 'Yellow', '': 'None' };
-                
                 document.getElementById('current-color-glow').style.backgroundColor = state.currentColor ? colorHexes[state.currentColor] : 'transparent';
                 document.getElementById('color-dot').style.backgroundColor = state.currentColor ? colorHexes[state.currentColor] : 'transparent';
                 document.getElementById('color-name').innerText = state.currentColor ? colorNames[state.currentColor] : 'None';
@@ -635,36 +811,26 @@
 
                 if (state.discardPile.length > 0) document.getElementById('discard-pile').innerHTML = createCardHTML(state.discardPile[state.discardPile.length - 1], false);
 
-                // DYNAMIC ACTION BUTTONS RENDER
                 const actionContainer = document.getElementById('action-buttons');
                 actionContainer.innerHTML = '';
 
-                // 1. CATCH button
+                // CHORD button
                 if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
-                    actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CATCH!</button>`;
+                    actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CHORD!</button>`;
                 }
 
-                // 2. Subtle UNO Grace Period Timer & Logic
+                let hasValidMove = me.hand.some(c => canPlayCard(c, state));
                 let catchGraceActive = state.catchTarget === currentUser.uid && (Date.now() - (state.catchTimestamp || 0) < 3000);
                 
-                // Determine if the player actually has a valid move they can make right now
-                let hasValidMove = me.hand.some(c => canPlayCard(c, state));
-
-                // Only show if it is their turn AND they hold exactly 2 cards AND have a valid move to throw, OR they threw and are currently in the 3s grace window
-                if ((isMyTurn && me.hand.length === 2 && !me.unoCalled && hasValidMove) || catchGraceActive) {
-                    actionContainer.innerHTML += `<button onclick="callUno()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 border border-gray-500 px-4 py-1 rounded shadow-sm text-sm font-bold opacity-70 hover:opacity-100 transition-opacity">UNO</button>`;
-                    
-                    // If they are in the 3-second grace period, auto-hide the button exactly at 3 seconds
-                    if (catchGraceActive) {
-                        setTimeout(() => {
-                            if (localGameState === state) renderGame(localGameState);
-                        }, 3000 - (Date.now() - state.catchTimestamp));
-                    }
+                // Subtle disabled UNO vs Yellow Grace Button
+                if (catchGraceActive) {
+                    actionContainer.innerHTML += `<button onclick="callUno()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-2 rounded-lg font-black shadow-lg border-2 border-white">UNO!</button>`;
+                    setTimeout(() => { if (localGameState === state) renderGame(localGameState); }, 3000 - (Date.now() - state.catchTimestamp));
+                } else if (isMyTurn && me.hand.length === 2 && !me.unoCalled && hasValidMove) {
+                    actionContainer.innerHTML += `<button disabled class="bg-gray-600 text-gray-400 border border-gray-500 px-4 py-1 rounded shadow-sm text-sm font-bold opacity-50 cursor-not-allowed">UNO</button>`;
                 }
 
-                // Buttons visible only to the active player
-                if (isMyTurn) {
-                    // 3. Draw or Take Penalty cards
+                if (isMyTurn && me.hand.length > 0) {
                     if (state.turnState === 'start') {
                         if (state.pendingDraws > 0) {
                             actionContainer.innerHTML += `<button onclick="takePenalty()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws} Cards</button>`;
@@ -672,8 +838,6 @@
                             actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white border border-blue-400"><i class="fas fa-plus"></i> Draw</button>`;
                         }
                     }
-
-                    // 4. Forfeit/Pass Turn
                     if (state.turnState === 'chained' || state.turnState === 'drew') {
                         actionContainer.innerHTML += `<button onclick="passTurn()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-gray-400"><i class="fas fa-forward"></i> Pass Turn</button>`;
                     }
@@ -690,6 +854,7 @@
                 const opps = document.getElementById('opponents-container'); opps.innerHTML = '';
                 state.players.forEach((p, idx) => {
                     if (p.id === currentUser.uid) return;
+                    if (p.hand.length === 0) return; // Hide winners from active play ring
                     const isActive = idx === state.turnIndex && state.status === 'playing';
                     const isCatchable = p.id === state.catchTarget;
                     
@@ -704,8 +869,21 @@
                         </div>`;
                 });
 
+                // Display Rank Modal for individual winners
+                if (me.hand.length === 0 && !localHasSeenRank) {
+                    let myRank = (state.winners || []).findIndex(w => w.id === currentUser.uid) + 1;
+                    if (myRank > 0) {
+                        document.getElementById('rank-text').innerText = `You finished Rank #${myRank}!`;
+                        document.getElementById('rank-modal').classList.remove('hidden');
+                        localHasSeenRank = true;
+                    }
+                }
+
+                // Overall Game End
                 if (state.status === 'finished') {
-                    document.getElementById('winner-name').innerText = `${state.players.find(p => p.id === state.winner)?.name} Wins!`;
+                    let wText = (state.winners || []).map((w, i) => `${i+1}. ${w.name}`).join('<br>');
+                    if(!wText) wText = "Someone Won!";
+                    document.getElementById('winner-name').innerHTML = wText;
                     document.getElementById('winner-modal').classList.remove('hidden');
                 }
             }
@@ -721,11 +899,13 @@
                 <div class="uno-card-corner bottom-right">${cc}</div></div>`;
         };
 
+        window.closeRankModal = () => document.getElementById('rank-modal').classList.add('hidden');
+
         window.returnToLobby = async () => {
             if (localGameState.hostId === currentUser.uid) {
                 await updateDoc(getRoomRef(currentRoomId), { 
-                    status: 'lobby', winner: null, deck: [], discardPile: [], currentColor: '',
-                    turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0
+                    status: 'lobby', winner: null, winners: [], deck: [], discardPile: [], currentColor: '',
+                    turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0, chatMessages: []
                 });
             }
             document.getElementById('winner-modal').classList.add('hidden');
@@ -737,4 +917,3 @@
 
 
 ```
-
