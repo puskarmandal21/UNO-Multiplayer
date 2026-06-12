@@ -54,7 +54,6 @@
 
         .glass-panel { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
 
-        /* Full page scroller for landscape support */
         #screen-game { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; }
 
         @keyframes slideIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -63,10 +62,8 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans notranslate">
 
-    <!-- Global Notifications -->
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-[60] hidden bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black transition-all duration-300 border-2 border-white text-center min-w-[250px]"></div>
 
-    <!-- Screen 1: Login / Join -->
     <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-red-900 via-gray-900 to-blue-900 p-4 min-h-screen">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-gray-700">
             <h1 class="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 tracking-tighter" style="-webkit-text-stroke: 2px white;" translate="no">UNO</h1>
@@ -99,7 +96,6 @@
         </div>
     </div>
 
-    <!-- Screen 2: Lobby -->
     <div id="screen-lobby" class="hidden flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 min-h-screen overflow-y-auto">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-700 my-auto">
             <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
@@ -155,7 +151,6 @@
         </div>
     </div>
 
-    <!-- Screen 3: Game Board -->
     <div id="screen-game" class="hidden flex-col relative bg-green-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-800 to-gray-900">
         
         <div class="absolute top-0 left-0 w-full p-2 flex justify-between items-start z-10 pointer-events-none">
@@ -212,7 +207,6 @@
         </div>
     </div>
 
-    <!-- Chat Widget with Fixed Audio Sizing & Spacing -->
     <button id="chat-toggle-btn" onclick="document.getElementById('chat-panel').classList.toggle('hidden')" class="fixed bottom-4 right-4 bg-blue-600 text-white w-14 h-14 rounded-full shadow-2xl z-40 hover:bg-blue-500 hidden items-center justify-center transition hover:scale-110">
         <i class="fas fa-comments text-2xl"></i>
     </button>
@@ -222,9 +216,7 @@
             <span>Room Chat</span>
             <button onclick="document.getElementById('chat-panel').classList.add('hidden')" class="hover:text-red-400"><i class="fas fa-times"></i></button>
         </div>
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm flex flex-col">
-            <!-- Msgs -->
-        </div>
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-3 space-y-2 text-sm flex flex-col"></div>
         <div class="p-2 bg-gray-900 border-t border-gray-700 flex gap-2 shrink-0 items-center justify-between">
             <input type="text" id="chat-input" class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-2 text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-full min-w-0" placeholder="Type..." onkeypress="if(event.key==='Enter') sendChat()">
             <div class="flex gap-2 shrink-0">
@@ -260,19 +252,15 @@
         <div class="text-center px-4">
             <h1 class="text-5xl md:text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">GAME OVER</h1>
             <h2 id="winner-name" class="text-xl md:text-3xl text-white font-bold mb-8 leading-relaxed">Someone Won!</h2>
-            <button onclick="returnToLobby()" class="bg-white text-black hover:bg-gray-200 font-bold py-4 px-8 rounded-full shadow-lg text-lg md:text-xl transition hover:scale-105">Return to Lobby</button>
+            <button id="btn-return-lobby" onclick="returnToLobby()" class="bg-white text-black hover:bg-gray-200 font-bold py-4 px-8 rounded-full shadow-lg text-lg md:text-xl transition hover:scale-105">Return to Lobby</button>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================
-        // FIREBASE CONFIGURATION
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCx1BYDb6ocTHyGemprGJ4k2B0WkCdUsko",
             authDomain: "uno-game-2744c.firebaseapp.com",
@@ -297,7 +285,6 @@
         let localHasSeenRank = false;
 
         const COLORS = ['red', 'blue', 'green', 'yellow'];
-        // Unique assigned colors for chat participants
         const CHAT_COLORS = ['text-red-400', 'text-blue-400', 'text-green-400', 'text-yellow-400', 'text-purple-400', 'text-pink-400', 'text-teal-400', 'text-orange-400', 'text-indigo-400', 'text-cyan-400'];
 
         signInAnonymously(auth).catch(err => {
@@ -334,7 +321,7 @@
             ['screen-login', 'screen-lobby', 'screen-game'].forEach(s => {
                 let el = document.getElementById(s);
                 el.classList.add('hidden');
-                if(id === s && s === 'screen-game') el.style.display = 'flex'; // Fix display block bugs
+                if(id === s && s === 'screen-game') el.style.display = 'flex'; 
             }); 
             if(id !== 'screen-game') document.getElementById(id).classList.remove('hidden'); 
         };
@@ -429,7 +416,6 @@
                     nextIndex = stepNext(nextIndex);
                 }
             }
-            // ABSOLUTE FAILSAFE: Whenever a turn successfully calculates its next owner, completely wipe chain statuses.
             state.turnState = 'start';
             state.chainValue = null;
             return nextIndex;
@@ -492,16 +478,19 @@
             if (!currentRoomId || !localGameState) return;
             const newPlayers = localGameState.players.filter(p => p.id !== currentUser.uid);
             try {
-                if (newPlayers.length > 0) {
-                    let updates = { players: newPlayers };
-                    if (localGameState.hostId === currentUser.uid) updates.hostId = newPlayers[0].id;
-                    await updateDoc(getRoomRef(currentRoomId), updates);
-                } else {
-                    // Everyone left, cleanly wipe the room from Database to save space!
+                if (newPlayers.length === 0 || (localGameState.status === 'playing' && newPlayers.length === 1)) {
+                    // Everyone left, or only 1 person left in the middle of a game -> Nuke the room completely
                     await deleteDoc(getRoomRef(currentRoomId));
                     await deleteDoc(getChatRef(currentRoomId));
+                } else {
+                    let updates = { players: newPlayers };
+                    if (localGameState.hostId === currentUser.uid) updates.hostId = newPlayers[0].id;
+                    if (localGameState.status === 'playing') updates.turnIndex = localGameState.turnIndex % newPlayers.length;
+                    
+                    await updateDoc(getRoomRef(currentRoomId), updates);
                 }
             } catch(e){}
+            
             if(unsubscribeGame) unsubscribeGame();
             if(unsubscribeChat) unsubscribeChat();
             currentRoomId = null; localGameState = null; switchScreen('screen-login');
@@ -515,9 +504,12 @@
             players.forEach(p => { p.hand = deck.splice(0, initCards); p.unoCalled = false; });
             let topCard = deck.splice(deck.findIndex(c => c.color !== 'black'), 1)[0];
             
+            // Random first turn
+            let randomStartTurn = Math.floor(Math.random() * players.length);
+            
             await updateDoc(getRoomRef(currentRoomId), {
                 status: 'playing', players, deck, discardPile: [topCard], currentColor: topCard.color, 
-                turnIndex: 0, direction: 1, winner: null, winners: [], catchTarget: null, catchTimestamp: 0,
+                turnIndex: randomStartTurn, direction: 1, winner: null, winners: [], catchTarget: null, catchTimestamp: 0,
                 turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0,
                 lastAction: { msg: 'Game Started!', ts: Date.now() }
             });
@@ -539,7 +531,6 @@
             let msgs = chatSnap.exists() ? chatSnap.data().messages || [] : [];
             msgs.push({ sender: me.name, text, type: 'text', ts: Date.now() });
             
-            // STRICT DB LIMIT: Max 10 Texts, Max 3 Audios to prevent lag and DB bloat
             let textMsgs = msgs.filter(m => m.type === 'text');
             let audioMsgs = msgs.filter(m => m.type === 'audio');
             if (textMsgs.length > 10) textMsgs = textMsgs.slice(textMsgs.length - 10);
@@ -576,7 +567,6 @@
                             let msgs = chatSnap.exists() ? chatSnap.data().messages || [] : [];
                             msgs.push({ sender: me.name, data: base64data, type: 'audio', ts: Date.now() });
                             
-                            // Apply strict limits again
                             let textMsgs = msgs.filter(m => m.type === 'text');
                             let audioMsgs = msgs.filter(m => m.type === 'audio');
                             if (textMsgs.length > 10) textMsgs = textMsgs.slice(textMsgs.length - 10);
@@ -591,7 +581,7 @@
                     btn.classList.remove('bg-green-600'); btn.classList.add('bg-red-600', 'animate-pulse');
                     micTimeout = setTimeout(() => {
                         if (mediaRecorder && mediaRecorder.state === 'recording') window.toggleMic();
-                    }, 4500); // Guarantees strict 4.5 seconds cut-off
+                    }, 4500); 
                 } catch(e) { showToast("Mic access denied"); }
             }
         };
@@ -729,60 +719,72 @@
             state.discardPile.push(card); 
             state.currentColor = color;
 
-            state.turnState = 'chained';
-            state.chainValue = card.value;
-
-            if (card.type === 'draw2') { state.pendingDraws += 2; state.penaltyType = 'draw2'; }
-            if (card.type === 'wild4') { state.pendingDraws += 4; state.penaltyType = 'wild4'; }
-            
-            if (card.type === 'skip') state.pendingSkips += 1;
-            if (card.type === 'reverse') {
-                let activeLen = state.players.filter(p => p.hand.length > 0).length;
-                if (activeLen === 2) state.pendingSkips += 1;
-                else state.direction *= -1;
-            }
-
-            // UNO Grace period logic
-            if (me.hand.length === 1 && !me.unoCalled) {
-                state.catchTarget = currentUser.uid;
-                state.catchTimestamp = Date.now();
-            }
-            if (me.hand.length > 1) {
-                me.unoCalled = false;
-                if (state.catchTarget === currentUser.uid) state.catchTarget = null;
-            }
-
-            // Handle Winners
-            if (me.hand.length === 0) { 
-                if (!state.winners) state.winners = [];
-                state.winners.push({ id: me.id, name: me.name });
-                state.catchTarget = null;
-            }
-
-            let activePlayers = state.players.filter(p => p.hand.length > 0);
-            let mode = state.settings?.mode || 'normal';
-            let isGameOver = false;
-
-            if (mode === 'normal' && state.winners?.length >= 1) isGameOver = true;
-            if (mode === 'top3' && state.winners?.length >= 3) isGameOver = true;
-            if (activePlayers.length <= 1) isGameOver = true;
-
-            if (isGameOver) {
-                state.status = 'finished';
-                state.winner = state.winners[0]?.id;
-                // Instantly wipe chat when game ends so lobby is fresh!
-                await updateDoc(getChatRef(currentRoomId), { messages: [] });
-            } else {
-                if (me.hand.length === 0) {
-                    state.turnIndex = getNextTurn(state, state.turnIndex);
+            if (card.type === 'number') {
+                if (me.hand.length === 1 && !me.unoCalled) {
+                    state.catchTarget = currentUser.uid;
+                    state.catchTimestamp = Date.now();
+                }
+                if (me.hand.length === 0) { 
+                    if (!state.winners) state.winners = [];
+                    state.winners.push({ id: me.id, name: me.name });
+                    state.catchTarget = null;
+                }
+                
+                let activePlayers = state.players.filter(p => p.hand.length > 0);
+                let mode = state.settings?.mode || 'normal';
+                let isGameOver = (mode === 'normal' && state.winners?.length >= 1) || (mode === 'top3' && state.winners?.length >= 3) || (activePlayers.length <= 1);
+                
+                if (isGameOver) {
+                    state.status = 'finished'; state.winner = state.winners[0]?.id;
                 } else {
-                    let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
-                    if (!hasMoreMoves) {
+                    state.turnIndex = getNextTurn(state, state.turnIndex);
+                }
+            } else {
+                state.turnState = 'chained';
+                state.chainValue = card.value;
+
+                if (card.type === 'draw2') { state.pendingDraws += 2; state.penaltyType = 'draw2'; }
+                if (card.type === 'wild4') { state.pendingDraws += 4; state.penaltyType = 'wild4'; }
+                
+                if (card.type === 'skip') state.pendingSkips += 1;
+                if (card.type === 'reverse') {
+                    let activeLen = state.players.filter(p => p.hand.length > 0).length;
+                    if (activeLen === 2) state.pendingSkips += 1;
+                    else state.direction *= -1;
+                }
+
+                if (me.hand.length === 1 && !me.unoCalled) {
+                    state.catchTarget = currentUser.uid;
+                    state.catchTimestamp = Date.now();
+                }
+                if (me.hand.length > 1) {
+                    me.unoCalled = false;
+                    if (state.catchTarget === currentUser.uid) state.catchTarget = null;
+                }
+
+                if (me.hand.length === 0) { 
+                    if (!state.winners) state.winners = [];
+                    state.winners.push({ id: me.id, name: me.name });
+                    state.catchTarget = null;
+                }
+
+                let activePlayers = state.players.filter(p => p.hand.length > 0);
+                let mode = state.settings?.mode || 'normal';
+                let isGameOver = (mode === 'normal' && state.winners?.length >= 1) || (mode === 'top3' && state.winners?.length >= 3) || (activePlayers.length <= 1);
+
+                if (isGameOver) {
+                    state.status = 'finished'; state.winner = state.winners[0]?.id;
+                } else {
+                    if (me.hand.length === 0) {
                         state.turnIndex = getNextTurn(state, state.turnIndex);
+                    } else {
+                        let hasMoreMoves = me.hand.some(c => c.value === state.chainValue);
+                        if (!hasMoreMoves) {
+                            state.turnIndex = getNextTurn(state, state.turnIndex);
+                        }
                     }
                 }
             }
-
             await updateDoc(getRoomRef(currentRoomId), state);
         };
 
@@ -809,6 +811,9 @@
         const renderGame = (state) => {
             if (state.status === 'lobby') {
                 switchScreen('screen-lobby');
+                document.getElementById('winner-modal').classList.add('hidden');
+                document.getElementById('rank-modal').classList.add('hidden');
+                
                 document.getElementById('lobby-room-code').innerText = state.roomId;
                 document.getElementById('player-count').innerText = state.players.length;
                 
@@ -875,14 +880,12 @@
                 let isOtherPlayerHolding2Cards = state.status === 'playing' && activePlayerNode.id !== currentUser.uid && activePlayerNode.hand.length === 2;
                 let catchGraceActive = state.catchTarget === currentUser.uid && (Date.now() - (state.catchTimestamp || 0) < 3000);
                 
-                // CHORD Logic 
                 if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
                     actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CHORD!</button>`;
                 } else if (isOtherPlayerHolding2Cards) {
                     actionContainer.innerHTML += `<button disabled class="bg-gray-600 text-gray-400 border border-gray-500 px-4 py-1 rounded shadow-sm text-sm font-bold opacity-50 cursor-not-allowed">CHORD</button>`;
                 }
 
-                // UNO Logic 
                 let hasValidMove = me.hand.some(c => canPlayCard(c, state));
                 if (catchGraceActive) {
                     actionContainer.innerHTML += `<button onclick="callUno()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-2 rounded-lg font-black shadow-lg border-2 border-white">UNO!</button>`;
@@ -930,7 +933,8 @@
                         </div>`;
                 });
 
-                if (me.hand.length === 0 && !localHasSeenRank) {
+                let mode = state.settings?.mode || 'normal';
+                if (me.hand.length === 0 && !localHasSeenRank && mode !== 'normal') {
                     let myRank = (state.winners || []).findIndex(w => w.id === currentUser.uid) + 1;
                     if (myRank > 0) {
                         document.getElementById('rank-text').innerText = `You finished Rank #${myRank}!`;
@@ -940,6 +944,9 @@
                 }
 
                 if (state.status === 'finished') {
+                    let isHost = state.hostId === currentUser.uid;
+                    document.getElementById('btn-return-lobby').innerText = isHost ? "Return to Lobby" : "Waiting for Host...";
+                    
                     let wText = (state.winners || []).map((w, i) => `${i+1}. <span translate="no">${w.name}</span>`).join('<br>');
                     if(!wText) wText = "Someone Won!";
                     document.getElementById('winner-name').innerHTML = wText;
@@ -961,12 +968,15 @@
         window.closeRankModal = () => document.getElementById('rank-modal').classList.add('hidden');
 
         window.returnToLobby = async () => {
-            if (localGameState.hostId === currentUser.uid) {
-                await updateDoc(getRoomRef(currentRoomId), { 
-                    status: 'lobby', winner: null, winners: [], deck: [], discardPile: [], currentColor: '',
-                    turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0
-                });
+            if (localGameState.hostId !== currentUser.uid) {
+                showToast("Only the host can restart the lobby!");
+                return;
             }
+            await updateDoc(getRoomRef(currentRoomId), { 
+                status: 'lobby', winner: null, winners: [], deck: [], discardPile: [], currentColor: '',
+                turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0, catchTarget: null, catchTimestamp: 0
+            });
+            await updateDoc(getChatRef(currentRoomId), { messages: [] });
             document.getElementById('winner-modal').classList.add('hidden');
         };
 
