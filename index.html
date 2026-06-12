@@ -46,7 +46,7 @@
         .card-black { background: linear-gradient(135deg, #ef4444 25%, #3b82f6 25%, #3b82f6 50%, #eab308 50%, #eab308 75%, #22c55e 75%); }
 
         .hand-container { 
-            display: flex; overflow-x: auto; padding-bottom: 20px; padding-top: 20px; gap: -40px; 
+            display: flex; overflow-x: auto; padding-bottom: 20px; padding-top: 20px; padding-right: 40px; gap: -40px; 
             -webkit-overflow-scrolling: touch;
         }
         .hand-container > div { margin-right: -40px; flex-shrink: 0; }
@@ -63,8 +63,10 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex flex-col font-sans notranslate">
 
+    <!-- Global Notifications -->
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 z-[60] hidden bg-blue-600 text-white px-8 py-4 rounded-full shadow-2xl text-lg font-black transition-all duration-300 border-2 border-white text-center min-w-[250px]"></div>
 
+    <!-- Screen 1: Login / Join -->
     <div id="screen-login" class="flex-1 flex items-center justify-center bg-gradient-to-br from-red-900 via-gray-900 to-blue-900 p-4 min-h-screen">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-gray-700">
             <h1 class="text-6xl font-black mb-2 text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-500 tracking-tighter" style="-webkit-text-stroke: 2px white;" translate="no">UNO</h1>
@@ -97,6 +99,7 @@
         </div>
     </div>
 
+    <!-- Screen 2: Lobby -->
     <div id="screen-lobby" class="hidden flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 min-h-screen overflow-y-auto">
         <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-700 my-auto">
             <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
@@ -152,6 +155,7 @@
         </div>
     </div>
 
+    <!-- Screen 3: Game Board -->
     <div id="screen-game" class="hidden flex-col relative bg-green-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-800 to-gray-900">
         
         <div class="absolute top-0 left-0 w-full p-2 flex justify-between items-start z-10 pointer-events-none">
@@ -204,12 +208,15 @@
                 <div class="text-lg md:text-xl font-bold" id="my-name-display" translate="no">You</div>
                 <div class="flex gap-2 sm:gap-4 items-center" id="action-buttons"></div>
             </div>
-            <div id="my-hand" class="hand-container px-4 sm:px-8 min-h-[140px] flex items-center justify-center sm:justify-start"></div>
+            <!-- FIX 1: justify-start w-full ensures hand scrolling to the left is never clipped -->
+            <div id="my-hand" class="hand-container px-4 sm:px-8 min-h-[140px] flex items-center justify-start w-full"></div>
         </div>
     </div>
 
+    <!-- Fixed Chat Widget -->
     <button id="chat-toggle-btn" onclick="toggleChat()" class="fixed bottom-4 right-4 bg-blue-600 text-white w-14 h-14 rounded-full shadow-2xl z-40 hover:bg-blue-500 hidden items-center justify-center transition hover:scale-110">
         <i class="fas fa-comments text-2xl"></i>
+        <!-- Notification Dot -->
         <div id="chat-badge" class="absolute top-0 right-0 bg-red-500 w-4 h-4 rounded-full border-2 border-white hidden"></div>
     </button>
 
@@ -228,6 +235,7 @@
         </div>
     </div>
 
+    <!-- Modals -->
     <div id="color-picker-modal" class="fixed inset-0 bg-black bg-opacity-80 z-50 hidden flex items-center justify-center backdrop-blur-sm">
         <div class="bg-gray-800 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center border border-gray-600">
             <h3 class="text-2xl font-black mb-6 text-white uppercase">Choose Color</h3>
@@ -257,6 +265,7 @@
         </div>
     </div>
 
+    <!-- Firebase SDKs & Audio API -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -288,7 +297,9 @@
         let localLastActionTs = 0;
         let localHasSeenRank = false;
         
-        let localChatLength = 0;
+        let isInitialChatLoad = true; // FIX 2: Timestamp Tracking Fix
+        let localLastChatTs = 0; // Tracks precise timestamp of latest chat
+        
         let lastDiscardCount = -1;
         let lastDeckCount = -1;
         let localTurnIndex = -1;
@@ -325,7 +336,7 @@
                 osc.stop(now + 0.15);
             } else if (type === 'chime') {
                 osc.type = 'triangle';
-                osc.frequency.setValueAtTime(440, now); // A4
+                osc.frequency.setValueAtTime(440, now);
                 gain.gain.setValueAtTime(0.1, now);
                 gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
                 osc.start(now);
@@ -337,7 +348,7 @@
                     osc2.connect(gain2); gain2.connect(audioCtx.destination);
                     const now2 = audioCtx.currentTime;
                     osc2.type = 'triangle';
-                    osc2.frequency.setValueAtTime(554.37, now2); // C#
+                    osc2.frequency.setValueAtTime(554.37, now2);
                     gain2.gain.setValueAtTime(0.1, now2);
                     gain2.gain.exponentialRampToValueAtTime(0.01, now2 + 0.3);
                     osc2.start(now2); osc2.stop(now2 + 0.3);
@@ -379,7 +390,7 @@
             ['screen-login', 'screen-lobby', 'screen-game'].forEach(s => {
                 let el = document.getElementById(s);
                 el.classList.add('hidden');
-                if (s === 'screen-game') el.classList.remove('flex');
+                if (s === 'screen-game') el.classList.remove('flex'); 
             }); 
             let target = document.getElementById(id);
             target.classList.remove('hidden');
@@ -477,7 +488,6 @@
                 }
             }
             
-            // ABSOLUTE FAILSAFE FOR BUG 1: Always wipe chain status when turn shifts!
             state.turnState = 'start';
             state.chainValue = null;
             return nextIndex;
@@ -654,12 +664,22 @@
             if(!localGameState) return;
             const chatContainer = document.getElementById('chat-messages');
             
-            if (messages.length > localChatLength) {
-                if (localChatLength > 0 && currentUser) playSound('pop');
-                if (document.getElementById('chat-panel').classList.contains('hidden') && localChatLength > 0) {
-                    document.getElementById('chat-badge').classList.remove('hidden');
+            // FIX 2: Check for strictly newer timestamps to guarantee ping fires every single time
+            if (messages.length > 0) {
+                let latestTs = messages[messages.length - 1].ts;
+                if (isInitialChatLoad) {
+                    localLastChatTs = latestTs;
+                    isInitialChatLoad = false;
+                } else if (latestTs > localLastChatTs) {
+                    if (currentUser) playSound('pop');
+                    if (document.getElementById('chat-panel').classList.contains('hidden')) {
+                        document.getElementById('chat-badge').classList.remove('hidden');
+                    }
+                    localLastChatTs = latestTs;
                 }
-                localChatLength = messages.length;
+            } else {
+                isInitialChatLoad = false;
+                localLastChatTs = 0;
             }
 
             let chatHTML = '';
@@ -822,7 +842,11 @@
 
             let activePlayers = state.players.filter(p => p.hand.length > 0);
             let mode = state.settings?.mode || 'normal';
-            let isGameOver = (mode === 'normal' && state.winners?.length >= 1) || (mode === 'top3' && state.winners?.length >= 3) || (activePlayers.length <= 1);
+            let isGameOver = false;
+
+            if (mode === 'normal' && state.winners?.length >= 1) isGameOver = true;
+            if (mode === 'top3' && state.winners?.length >= 3) isGameOver = true;
+            if (activePlayers.length <= 1) isGameOver = true;
 
             if (isGameOver) {
                 state.status = 'finished'; state.winner = state.winners[0]?.id;
@@ -843,6 +867,9 @@
         const listenToRoom = (roomId) => {
             if(unsubscribeGame) unsubscribeGame();
             if(unsubscribeChat) unsubscribeChat();
+
+            isInitialChatLoad = true;
+            localLastChatTs = 0;
 
             unsubscribeGame = onSnapshot(getRoomRef(roomId), (snap) => {
                 if (!snap.exists()) { showToast("Room closed", true); leaveRoom(); return; }
