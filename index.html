@@ -93,8 +93,8 @@
     </div>
 
     <!-- Screen 2: Lobby -->
-    <div id="screen-lobby" class="hidden flex-1 flex flex-col items-center justify-center bg-gray-900 p-4">
-        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-700">
+    <div id="screen-lobby" class="hidden flex-1 flex flex-col items-center justify-center bg-gray-900 p-4 overflow-y-auto">
+        <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-2xl w-full border border-gray-700 my-auto">
             <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
                 <h2 class="text-3xl font-bold">Game Lobby</h2>
                 <div class="bg-gray-700 px-4 py-2 rounded-lg text-center">
@@ -108,7 +108,7 @@
                 <!-- Host Settings -->
                 <div id="host-settings" class="bg-gray-700 p-4 rounded-xl hidden">
                     <h4 class="font-bold mb-2 text-yellow-400 text-sm uppercase">Host Settings</h4>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="text-xs text-gray-300 block mb-1">Game Mode</label>
                             <select id="setting-mode" class="w-full bg-gray-800 rounded p-2 text-sm text-white border border-gray-600 focus:outline-none" onchange="updateSettings()">
@@ -119,7 +119,11 @@
                         </div>
                         <div>
                             <label class="text-xs text-gray-300 block mb-1">Initial Cards</label>
-                            <input type="number" id="setting-cards" min="5" max="11" value="7" class="w-full bg-gray-800 rounded p-2 text-sm text-white border border-gray-600 focus:outline-none" onchange="updateSettings()">
+                            <div class="flex items-center gap-2">
+                                <button onclick="changeCards(-1)" id="btn-minus-cards" class="bg-gray-800 border border-gray-600 px-3 py-1 rounded text-white hover:bg-gray-600 font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">-</button>
+                                <span id="setting-cards-display" class="font-bold text-blue-400 w-8 text-center text-lg bg-gray-900 py-1 rounded border border-gray-700 shadow-inner">7</span>
+                                <button onclick="changeCards(1)" id="btn-plus-cards" class="bg-gray-800 border border-gray-600 px-3 py-1 rounded text-white hover:bg-gray-600 font-bold transition disabled:opacity-50 disabled:cursor-not-allowed">+</button>
+                            </div>
                         </div>
                     </div>
                     <p class="text-[10px] text-gray-400 mt-2">*Top 3 and Endless modes require at least 4 players.</p>
@@ -127,7 +131,7 @@
                 <!-- Guest View -->
                 <div id="guest-settings-view" class="bg-gray-700 p-4 rounded-xl hidden">
                     <h4 class="font-bold mb-2 text-gray-400 text-xs uppercase">Room Settings</h4>
-                    <div class="flex gap-4 text-sm font-semibold">
+                    <div class="flex flex-wrap gap-4 text-sm font-semibold">
                         <div class="bg-gray-800 px-3 py-1 rounded border border-gray-600">Mode: <span id="guest-mode-display" class="text-yellow-400 uppercase">Normal</span></div>
                         <div class="bg-gray-800 px-3 py-1 rounded border border-gray-600">Cards: <span id="guest-cards-display" class="text-blue-400">7</span></div>
                     </div>
@@ -136,7 +140,7 @@
 
             <div class="mb-6">
                 <h3 class="text-xl font-semibold text-gray-300 mb-2">Players (<span id="player-count">1</span>/10)</h3>
-                <div id="player-list" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+                <div id="player-list" class="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[30vh] overflow-y-auto pr-2"></div>
             </div>
 
             <div class="flex gap-4">
@@ -148,7 +152,7 @@
     </div>
 
     <!-- Screen 3: Game Board -->
-    <div id="screen-game" class="hidden flex-1 flex flex-col relative bg-green-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-800 to-gray-900">
+    <div id="screen-game" class="hidden flex-1 flex flex-col relative bg-green-900 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-green-800 to-gray-900 h-screen overflow-hidden">
         
         <div class="absolute top-0 left-0 w-full p-2 flex justify-between items-start z-10 pointer-events-none">
             <div class="glass-panel px-4 py-2 rounded-lg pointer-events-auto shadow-lg">
@@ -157,7 +161,7 @@
             </div>
             
             <div class="flex flex-col items-center gap-2">
-                <div id="direction-indicator" class="glass-panel w-12 h-12 rounded-full flex items-center justify-center text-2xl shadow-lg transition-transform duration-500">
+                <div id="direction-indicator" class="glass-panel w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-xl md:text-2xl shadow-lg transition-transform duration-500">
                     <i class="fas fa-sync-alt text-white"></i>
                 </div>
                 <!-- ACTIVE COLOR INDICATOR -->
@@ -167,17 +171,19 @@
                 </div>
             </div>
 
-            <button onclick="leaveRoom()" class="glass-panel px-4 py-2 rounded-lg text-red-400 hover:text-white hover:bg-red-600 pointer-events-auto transition">
-                <i class="fas fa-sign-out-alt"></i> Leave
+            <button onclick="leaveRoom()" class="glass-panel px-3 md:px-4 py-2 rounded-lg text-red-400 hover:text-white hover:bg-red-600 pointer-events-auto transition text-sm md:text-base">
+                <i class="fas fa-sign-out-alt"></i> <span class="hidden sm:inline">Leave</span>
             </button>
         </div>
 
-        <div id="opponents-container" class="flex-1 flex justify-around items-start pt-20 px-4 flex-wrap gap-4 z-0"></div>
+        <!-- Responsive Opponents Container -->
+        <div id="opponents-container" class="w-full max-w-5xl mx-auto flex justify-center items-start pt-16 sm:pt-20 px-2 sm:px-4 flex-wrap gap-2 sm:gap-4 z-0 max-h-[30vh] overflow-y-auto"></div>
 
-        <div class="flex-1 flex flex-col items-center justify-center relative z-0 min-h-[250px]">
+        <!-- Center Play Area -->
+        <div class="flex-1 flex flex-col items-center justify-center relative z-0 min-h-[160px] md:min-h-[250px]">
             <div id="current-color-glow" class="absolute w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors duration-500"></div>
 
-            <div class="flex gap-8 items-center z-10">
+            <div class="flex gap-4 md:gap-8 items-center z-10 transform scale-75 md:scale-100">
                 <div class="flex flex-col items-center">
                     <div id="draw-pile" class="uno-card bg-gray-800 border-gray-600 cursor-pointer hover:scale-105" onclick="drawCard()">
                         <div class="uno-card-inner bg-red-600 border-red-500 flex items-center justify-center">
@@ -193,19 +199,20 @@
                 </div>
             </div>
 
-            <div id="turn-banner" class="mt-8 text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg text-center h-8 transition-all">Waiting...</div>
+            <div id="turn-banner" class="mt-4 md:mt-8 text-xl md:text-2xl font-black uppercase tracking-widest text-white drop-shadow-lg text-center h-8 transition-all">Waiting...</div>
         </div>
 
-        <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-4 pb-8 flex flex-col relative z-20">
-            <div class="flex justify-between items-end mb-2 px-4">
-                <div class="text-xl font-bold" id="my-name-display">You</div>
+        <!-- Bottom Hand Area -->
+        <div class="w-full glass-panel border-b-0 border-x-0 rounded-t-3xl p-3 md:p-4 pb-6 md:pb-8 flex flex-col relative z-20">
+            <div class="flex justify-between items-end mb-2 px-2 md:px-4">
+                <div class="text-lg md:text-xl font-bold" id="my-name-display">You</div>
                 
                 <!-- Dynamic Action Buttons Container -->
                 <div class="flex gap-2 sm:gap-4 items-center" id="action-buttons">
                     <!-- Buttons generated dynamically in JS -->
                 </div>
             </div>
-            <div id="my-hand" class="hand-container px-8 min-h-[140px] flex items-center justify-center sm:justify-start"></div>
+            <div id="my-hand" class="hand-container px-4 sm:px-8 min-h-[120px] md:min-h-[140px] flex items-center justify-center sm:justify-start"></div>
         </div>
     </div>
 
@@ -216,7 +223,7 @@
         <i class="fas fa-comments text-2xl"></i>
     </button>
 
-    <div id="chat-panel" class="hidden fixed bottom-20 right-4 w-80 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden h-[400px]">
+    <div id="chat-panel" class="hidden fixed bottom-20 right-4 w-[320px] bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-40 flex flex-col overflow-hidden h-[400px] max-h-[60vh]">
         <div class="bg-gray-700 p-3 font-bold text-sm flex justify-between border-b border-gray-600">
             <span>Room Chat</span>
             <button onclick="document.getElementById('chat-panel').classList.add('hidden')" class="hover:text-red-400"><i class="fas fa-times"></i></button>
@@ -248,18 +255,18 @@
     <!-- Winner Spectator Modal -->
     <div id="rank-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center backdrop-blur-md">
         <div class="text-center">
-            <h1 class="text-5xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">CONGRATULATIONS!</h1>
-            <h2 id="rank-text" class="text-3xl text-white font-bold mb-8">You finished Rank #1</h2>
-            <button onclick="closeRankModal()" class="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-full shadow-lg text-xl transition hover:scale-105">Spectate Game</button>
+            <h1 class="text-5xl md:text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">CONGRATULATIONS!</h1>
+            <h2 id="rank-text" class="text-2xl md:text-4xl text-white font-bold mb-8">You finished Rank #1</h2>
+            <button onclick="closeRankModal()" class="bg-white text-black hover:bg-gray-200 font-bold py-3 px-8 rounded-full shadow-lg text-lg md:text-xl transition hover:scale-105">Spectate Game</button>
         </div>
     </div>
 
     <!-- Final Overall Winner Modal -->
     <div id="winner-modal" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center backdrop-blur-md">
-        <div class="text-center">
-            <h1 class="text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">GAME OVER</h1>
-            <h2 id="winner-name" class="text-3xl text-white font-bold mb-8 leading-relaxed">Someone Won!</h2>
-            <button onclick="returnToLobby()" class="bg-white text-black hover:bg-gray-200 font-bold py-4 px-8 rounded-full shadow-lg text-xl transition hover:scale-105">Return to Lobby</button>
+        <div class="text-center px-4">
+            <h1 class="text-5xl md:text-7xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600">GAME OVER</h1>
+            <h2 id="winner-name" class="text-xl md:text-3xl text-white font-bold mb-8 leading-relaxed">Someone Won!</h2>
+            <button onclick="returnToLobby()" class="bg-white text-black hover:bg-gray-200 font-bold py-4 px-8 rounded-full shadow-lg text-lg md:text-xl transition hover:scale-105">Return to Lobby</button>
         </div>
     </div>
 
@@ -269,6 +276,9 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, updateDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // ==========================================
+        // FIREBASE CONFIGURATION
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCx1BYDb6ocTHyGemprGJ4k2B0WkCdUsko",
             authDomain: "uno-game-2744c.firebaseapp.com",
@@ -292,6 +302,7 @@
         let localHasSeenRank = false;
 
         const COLORS = ['red', 'blue', 'green', 'yellow'];
+        const CHAT_COLORS = ['text-red-400', 'text-blue-400', 'text-green-400', 'text-yellow-400', 'text-purple-400', 'text-pink-400', 'text-teal-400', 'text-orange-400', 'text-indigo-400', 'text-cyan-400'];
 
         signInAnonymously(auth).catch(err => {
             document.getElementById('auth-loading').innerText = "Database connection failed. Check config.";
@@ -379,7 +390,7 @@
                 do {
                     nxt = (nxt + state.direction) % len;
                     if (nxt < 0) nxt += len;
-                } while (state.players[nxt].hand.length === 0); // Always completely bypass winners
+                } while (state.players[nxt].hand.length === 0); 
                 return nxt;
             };
 
@@ -398,7 +409,7 @@
                 });
 
                 if (hasDefense) {
-                    break; // Has defense, their turn to block
+                    break;
                 } else {
                     for(let i=0; i<state.pendingDraws; i++) {
                         if (state.deck.length === 0 && state.discardPile.length > 1) {
@@ -418,11 +429,19 @@
         };
 
         // --- HOST SETTINGS ---
+        window.changeCards = async (delta) => {
+            if (!localGameState || localGameState.hostId !== currentUser.uid) return;
+            let current = parseInt(localGameState.settings?.initialCards || 7);
+            let next = current + delta;
+            if (next >= 5 && next <= 11) {
+                await updateDoc(getRoomRef(currentRoomId), { 'settings.initialCards': next });
+            }
+        };
+
         window.updateSettings = async () => {
             if (!localGameState || localGameState.hostId !== currentUser.uid) return;
             let mode = document.getElementById('setting-mode').value;
-            let initialCards = document.getElementById('setting-cards').value;
-            await updateDoc(getRoomRef(currentRoomId), { settings: { mode, initialCards } });
+            await updateDoc(getRoomRef(currentRoomId), { 'settings.mode': mode });
         };
 
         window.createRoom = async () => {
@@ -488,12 +507,17 @@
                 status: 'playing', players, deck, discardPile: [topCard], currentColor: topCard.color, 
                 turnIndex: 0, direction: 1, winner: null, winners: [], catchTarget: null, catchTimestamp: 0,
                 turnState: 'start', chainValue: null, penaltyType: null, pendingDraws: 0, pendingSkips: 0,
-                lastAction: { msg: 'Game Started!', ts: Date.now() }, chatMessages: []
+                lastAction: { msg: 'Game Started!', ts: Date.now() }
             });
             localHasSeenRank = false;
         };
 
         // --- CHAT SYSTEM ---
+        const getSenderColor = (name, players) => {
+            let idx = players.findIndex(p => p.name === name);
+            return idx >= 0 ? CHAT_COLORS[idx % CHAT_COLORS.length] : 'text-gray-400';
+        };
+
         window.sendChat = async () => {
             let input = document.getElementById('chat-input');
             let text = input.value.trim();
@@ -538,7 +562,7 @@
                     btn.classList.remove('bg-green-600'); btn.classList.add('bg-red-600', 'animate-pulse');
                     micTimeout = setTimeout(() => {
                         if (mediaRecorder && mediaRecorder.state === 'recording') window.toggleMic();
-                    }, 5000); // 5 sec strict limit
+                    }, 5000); 
                 } catch(e) { showToast("Mic access denied"); }
             }
         };
@@ -705,9 +729,9 @@
             if (isGameOver) {
                 state.status = 'finished';
                 state.winner = state.winners[0]?.id;
+                state.chatMessages = []; // Wipe Chat Data instantly on Game Over!
             } else {
                 if (me.hand.length === 0) {
-                    // Won, but game continues (pass turn)
                     state.turnIndex = getNextTurn(state, state.turnIndex);
                     state.turnState = 'start';
                     state.chainValue = null;
@@ -759,7 +783,12 @@
                     } else {
                         modeSelect.value = state.settings?.mode || 'normal';
                     }
-                    document.getElementById('setting-cards').value = state.settings?.initialCards || 7;
+                    
+                    let initialCards = parseInt(state.settings?.initialCards || 7);
+                    document.getElementById('setting-cards-display').innerText = initialCards;
+                    document.getElementById('btn-minus-cards').disabled = initialCards <= 5;
+                    document.getElementById('btn-plus-cards').disabled = initialCards >= 11;
+
                 } else {
                     document.getElementById('guest-mode-display').innerText = state.settings?.mode || 'normal';
                     document.getElementById('guest-cards-display').innerText = state.settings?.initialCards || 7;
@@ -780,14 +809,15 @@
                 const me = state.players.find(p => p.id === currentUser.uid);
                 if(!me) return;
 
-                // Sync Chat
+                // Sync Chat with Auto-Scrolling and Unique Colors & Audio Fixes
                 const chatContainer = document.getElementById('chat-messages');
                 let chatHTML = '';
                 (state.chatMessages || []).forEach(m => {
+                    let sColor = getSenderColor(m.sender, state.players);
                     if (m.type === 'text') {
-                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600"><span class="font-bold text-yellow-400">${m.sender}:</span> ${m.text}</div>`;
+                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600 break-words"><span class="font-bold ${sColor}">${m.sender}:</span> <span class="text-gray-100">${m.text}</span></div>`;
                     } else if (m.type === 'audio') {
-                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600"><span class="font-bold text-yellow-400">${m.sender}:</span> <audio src="${m.data}" controls class="h-8 mt-1 w-full rounded"></audio></div>`;
+                        chatHTML += `<div class="bg-gray-700 rounded p-2 border border-gray-600 flex flex-col max-w-full overflow-hidden"><span class="font-bold ${sColor} mb-1">${m.sender}:</span> <audio src="${m.data}" controls style="width: 100%; min-width: 150px; max-width: 250px;" class="h-8 rounded outline-none"></audio></div>`;
                     }
                 });
                 if (chatContainer.innerHTML !== chatHTML) {
@@ -805,41 +835,48 @@
                 document.getElementById('color-name').innerText = state.currentColor ? colorNames[state.currentColor] : 'None';
 
                 const banner = document.getElementById('turn-banner');
-                if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-8 text-4xl font-black uppercase tracking-widest text-yellow-400 drop-shadow-lg"; }
-                else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-8 text-3xl font-black uppercase tracking-widest text-green-400 drop-shadow-lg animate-bounce"; }
-                else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-8 text-xl font-black uppercase tracking-widest text-white drop-shadow-lg"; }
+                if (state.status === 'finished') { banner.innerText = "Game Over!"; banner.className = "mt-4 md:mt-8 text-2xl md:text-4xl font-black uppercase tracking-widest text-yellow-400 drop-shadow-lg"; }
+                else if (isMyTurn) { banner.innerText = "Your Turn!"; banner.className = "mt-4 md:mt-8 text-2xl md:text-3xl font-black uppercase tracking-widest text-green-400 drop-shadow-lg animate-bounce"; }
+                else { banner.innerText = `${state.players[state.turnIndex].name}'s Turn`; banner.className = "mt-4 md:mt-8 text-lg md:text-xl font-black uppercase tracking-widest text-white drop-shadow-lg"; }
 
                 if (state.discardPile.length > 0) document.getElementById('discard-pile').innerHTML = createCardHTML(state.discardPile[state.discardPile.length - 1], false);
 
                 const actionContainer = document.getElementById('action-buttons');
                 actionContainer.innerHTML = '';
 
-                // CHORD button
-                if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
-                    actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CHORD!</button>`;
-                }
-
-                let hasValidMove = me.hand.some(c => canPlayCard(c, state));
+                let activePlayerNode = state.players[state.turnIndex];
+                let isOtherPlayerHolding2Cards = state.status === 'playing' && activePlayerNode.id !== currentUser.uid && activePlayerNode.hand.length === 2;
                 let catchGraceActive = state.catchTarget === currentUser.uid && (Date.now() - (state.catchTimestamp || 0) < 3000);
                 
+                // CHORD button Logic (Updated rules)
+                if (state.catchTarget && state.catchTarget !== currentUser.uid && state.status === 'playing') {
+                    // Active target exists and they threw the card without UNO! (Red, enabled)
+                    actionContainer.innerHTML += `<button onclick="catchPlayer()" class="bg-red-600 hover:bg-red-500 px-6 py-2 rounded-lg font-black text-white shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-pulse border-2 border-white">CHORD!</button>`;
+                } else if (isOtherPlayerHolding2Cards) {
+                    // The active player has 2 cards and it's their turn (Grey, disabled)
+                    actionContainer.innerHTML += `<button disabled class="bg-gray-600 text-gray-400 border border-gray-500 px-4 py-1 rounded shadow-sm text-sm font-bold opacity-50 cursor-not-allowed">CHORD</button>`;
+                }
+
                 // Subtle disabled UNO vs Yellow Grace Button
+                let hasValidMove = me.hand.some(c => canPlayCard(c, state));
+                
                 if (catchGraceActive) {
                     actionContainer.innerHTML += `<button onclick="callUno()" class="bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-2 rounded-lg font-black shadow-lg border-2 border-white">UNO!</button>`;
                     setTimeout(() => { if (localGameState === state) renderGame(localGameState); }, 3000 - (Date.now() - state.catchTimestamp));
-                } else if (isMyTurn && me.hand.length === 2 && !me.unoCalled && hasValidMove) {
+                } else if (isMyTurn && me.hand.length === 2 && !me.unoCalled && hasValidMove && state.turnState !== 'chained') {
                     actionContainer.innerHTML += `<button disabled class="bg-gray-600 text-gray-400 border border-gray-500 px-4 py-1 rounded shadow-sm text-sm font-bold opacity-50 cursor-not-allowed">UNO</button>`;
                 }
 
                 if (isMyTurn && me.hand.length > 0) {
                     if (state.turnState === 'start') {
                         if (state.pendingDraws > 0) {
-                            actionContainer.innerHTML += `<button onclick="takePenalty()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws} Cards</button>`;
+                            actionContainer.innerHTML += `<button onclick="takePenalty()" class="bg-red-600 hover:bg-red-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-red-400 text-sm md:text-base"><i class="fas fa-layer-group"></i> Take ${state.pendingDraws} Cards</button>`;
                         } else {
-                            actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white border border-blue-400"><i class="fas fa-plus"></i> Draw</button>`;
+                            actionContainer.innerHTML += `<button onclick="drawCard()" class="bg-blue-600 hover:bg-blue-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white border border-blue-400 text-sm md:text-base"><i class="fas fa-plus"></i> Draw</button>`;
                         }
                     }
                     if (state.turnState === 'chained' || state.turnState === 'drew') {
-                        actionContainer.innerHTML += `<button onclick="passTurn()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-gray-400"><i class="fas fa-forward"></i> Pass Turn</button>`;
+                        actionContainer.innerHTML += `<button onclick="passTurn()" class="bg-gray-600 hover:bg-gray-500 px-3 md:px-4 py-1 md:py-2 rounded-lg font-bold shadow-lg text-white whitespace-nowrap border border-gray-400 text-sm md:text-base"><i class="fas fa-forward"></i> Pass Turn</button>`;
                     }
                 }
 
@@ -854,22 +891,21 @@
                 const opps = document.getElementById('opponents-container'); opps.innerHTML = '';
                 state.players.forEach((p, idx) => {
                     if (p.id === currentUser.uid) return;
-                    if (p.hand.length === 0) return; // Hide winners from active play ring
+                    if (p.hand.length === 0) return; 
                     const isActive = idx === state.turnIndex && state.status === 'playing';
                     const isCatchable = p.id === state.catchTarget;
                     
                     opps.innerHTML += `
-                        <div class="glass-panel rounded-xl p-3 flex flex-col items-center min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'} ${isCatchable ? 'ring-4 ring-red-500 animate-pulse' : ''}">
-                            <div class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-2 shadow-inner border border-gray-500">${p.name.charAt(0).toUpperCase()}</div>
-                            <div class="text-sm font-bold truncate w-20 text-center">${p.name}</div>
-                            <div class="mt-2 bg-gray-800 rounded-full px-3 py-1 text-sm font-mono font-bold flex items-center gap-2">
+                        <div class="glass-panel rounded-xl p-2 md:p-3 flex flex-col items-center min-w-[80px] md:min-w-[100px] border-2 transition-all ${isActive ? 'border-green-400 scale-110 shadow-[0_0_15px_rgba(74,222,128,0.5)]' : 'border-transparent opacity-80'} ${isCatchable ? 'ring-4 ring-red-500 animate-pulse' : ''}">
+                            <div class="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-600 flex items-center justify-center font-bold mb-1 md:mb-2 shadow-inner border border-gray-500">${p.name.charAt(0).toUpperCase()}</div>
+                            <div class="text-xs md:text-sm font-bold truncate w-16 md:w-20 text-center">${p.name}</div>
+                            <div class="mt-1 md:mt-2 bg-gray-800 rounded-full px-2 py-1 text-xs md:text-sm font-mono font-bold flex items-center gap-1 md:gap-2">
                                 <i class="fas fa-layer-group text-yellow-500"></i> ${p.hand.length}
                             </div>
-                            ${p.unoCalled ? '<div class="text-[10px] text-yellow-400 font-black uppercase mt-1 text-center w-full">UNO Called</div>' : ''}
+                            ${p.unoCalled ? '<div class="text-[8px] md:text-[10px] text-yellow-400 font-black uppercase mt-1 text-center w-full">UNO Called</div>' : ''}
                         </div>`;
                 });
 
-                // Display Rank Modal for individual winners
                 if (me.hand.length === 0 && !localHasSeenRank) {
                     let myRank = (state.winners || []).findIndex(w => w.id === currentUser.uid) + 1;
                     if (myRank > 0) {
@@ -879,7 +915,6 @@
                     }
                 }
 
-                // Overall Game End
                 if (state.status === 'finished') {
                     let wText = (state.winners || []).map((w, i) => `${i+1}. ${w.name}`).join('<br>');
                     if(!wText) wText = "Someone Won!";
