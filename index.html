@@ -414,6 +414,28 @@
             if (id === 'screen-game') target.classList.add('flex');
         };
 
+        // --- HUMAN RIFFLE-SHUFFLE SIMULATOR ---
+        const humanShuffle = (deckArray) => {
+            let currentDeck = [...deckArray];
+            let shuffles = 4; // Standard human riffle count
+            for (let s = 0; s < shuffles; s++) {
+                // Cut the deck roughly in half
+                let half = Math.floor(currentDeck.length / 2) + Math.floor(Math.random() * 7) - 3;
+                let left = currentDeck.slice(0, half);
+                let right = currentDeck.slice(half);
+                let newDeck = [];
+                // Drop clumps of 1-4 cards from each hand
+                while (left.length > 0 || right.length > 0) {
+                    let dropL = Math.floor(Math.random() * 4) + 1;
+                    let dropR = Math.floor(Math.random() * 4) + 1;
+                    if (left.length > 0) newDeck.push(...left.splice(0, dropL));
+                    if (right.length > 0) newDeck.push(...right.splice(0, dropR));
+                }
+                currentDeck = newDeck;
+            }
+            return currentDeck;
+        };
+
         const generateDeck = () => {
             let deck = [];
             COLORS.forEach(color => {
@@ -431,7 +453,7 @@
                 deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild', type: 'wild' });
                 deck.push({ id: Math.random().toString(36).substring(2), color: 'black', value: 'wild4', type: 'wild4' });
             }
-            return deck.sort(() => Math.random() - 0.5);
+            return humanShuffle(deck);
         };
 
         const canPlayCard = (card, state) => {
@@ -493,7 +515,7 @@
                 } else {
                     for(let i=0; i<state.pendingDraws; i++) {
                         if (state.deck.length === 0 && state.discardPile.length > 1) {
-                            state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                            state.deck = humanShuffle(state.discardPile.splice(0, state.discardPile.length-1));
                         }
                         if (state.deck.length > 0) target.hand.push(state.deck.pop());
                     }
@@ -505,7 +527,7 @@
                 }
             }
             
-            // Absolutely strictly force chain clearance when turn passes
+            // Absolute Failsafe: Wipe chain states completely when passing turn!
             state.turnState = 'start';
             state.chainValue = null;
             return nextIndex;
@@ -637,10 +659,10 @@
             let activePlayer = state.players[activeIdx];
             
             if (state.deck.length === 0 && state.discardPile.length > 1) {
-                state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                state.deck = humanShuffle(state.discardPile.splice(0, state.discardPile.length-1));
             }
             state.deck.push(...activePlayer.hand);
-            state.deck.sort(() => Math.random() - 0.5);
+            state.deck = humanShuffle(state.deck); // Reshuffle kicked player's cards organically
             state.players.splice(activeIdx, 1);
             
             state.lastAction = { msg: `🚨 ${activePlayer.name} was kicked by host!`, ts: Date.now() };
@@ -673,10 +695,10 @@
             
             if (state.missedTurns[activePlayer.id] >= 2) {
                 if (state.deck.length === 0 && state.discardPile.length > 1) {
-                    state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                    state.deck = humanShuffle(state.discardPile.splice(0, state.discardPile.length-1));
                 }
                 state.deck.push(...activePlayer.hand);
-                state.deck.sort(() => Math.random() - 0.5);
+                state.deck = humanShuffle(state.deck);
                 state.players.splice(activeIdx, 1);
                 
                 state.lastAction = { msg: `🚨 ${activePlayer.name} was removed due to inactivity!`, ts: Date.now() };
@@ -699,8 +721,6 @@
                 if (activePlayer.id === state.hostId && state.players.length > 0) state.hostId = state.players[0].id;
             } else {
                 state.turnIndex = getNextTurn(state, state.turnIndex);
-                state.turnState = 'start';
-                state.chainValue = null;
                 state.lastAction = { msg: `⏳ ${activePlayer.name} ran out of time! Turn skipped.`, ts: Date.now() };
             }
             
@@ -728,7 +748,6 @@
                 }
             }
         }, 1000);
-
 
         const getSenderColor = (name, players) => {
             let idx = players.findIndex(p => p.name === name);
@@ -859,7 +878,7 @@
             let catcher = state.players.find(p => p.id === currentUser.uid);
             
             if (state.deck.length === 0 && state.discardPile.length > 1) {
-                state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                state.deck = humanShuffle(state.discardPile.splice(0, state.discardPile.length-1));
             }
             if (state.deck.length > 0) target.hand.push(state.deck.pop());
             
@@ -889,7 +908,7 @@
             let p = state.players.find(x => x.id === currentUser.uid);
             for(let i=0; i<state.pendingDraws; i++) {
                 if (state.deck.length === 0 && state.discardPile.length > 1) {
-                    state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                    state.deck = humanShuffle(state.discardPile.splice(0, state.discardPile.length-1));
                 }
                 if(state.deck.length > 0) p.hand.push(state.deck.pop());
             }
@@ -914,7 +933,7 @@
             let p = state.players.find(x => x.id === currentUser.uid);
             
             if (state.deck.length === 0 && state.discardPile.length > 1) {
-                state.deck = state.discardPile.splice(0, state.discardPile.length-1).sort(()=>Math.random()-0.5);
+                state.deck = humanShuffle(state.discardPile.splice(0, state.discardPile.length-1));
             }
             if(state.deck.length > 0) p.hand.push(state.deck.pop());
             
